@@ -13,7 +13,6 @@ pub enum SharedError {
     // ════════════════════════════════════════════════════════════════
     // Initialization Errors (1-99)
     // ════════════════════════════════════════════════════════════════
-
     /// Contract already initialized
     AlreadyInitialized = 1,
     /// Contract not initialized
@@ -24,7 +23,6 @@ pub enum SharedError {
     // ════════════════════════════════════════════════════════════════
     // Authorization Errors (100-199)
     // ════════════════════════════════════════════════════════════════
-
     /// Caller is not authorized
     Unauthorized = 100,
     /// Caller is not the admin
@@ -37,7 +35,6 @@ pub enum SharedError {
     // ════════════════════════════════════════════════════════════════
     // Validation Errors (200-299)
     // ════════════════════════════════════════════════════════════════
-
     /// Invalid amount (zero or negative)
     InvalidAmount = 200,
     /// Amount exceeds maximum allowed
@@ -58,7 +55,6 @@ pub enum SharedError {
     // ════════════════════════════════════════════════════════════════
     // State Errors (300-399)
     // ════════════════════════════════════════════════════════════════
-
     /// Contract is paused
     ContractPaused = 300,
     /// Contract is not paused
@@ -73,7 +69,6 @@ pub enum SharedError {
     // ════════════════════════════════════════════════════════════════
     // Token Errors (400-499)
     // ════════════════════════════════════════════════════════════════
-
     /// Insufficient balance
     InsufficientBalance = 400,
     /// Token not found
@@ -86,7 +81,6 @@ pub enum SharedError {
     // ════════════════════════════════════════════════════════════════
     // Math Errors (500-599)
     // ════════════════════════════════════════════════════════════════
-
     /// Arithmetic overflow
     Overflow = 500,
     /// Arithmetic underflow
@@ -97,7 +91,6 @@ pub enum SharedError {
     // ════════════════════════════════════════════════════════════════
     // External Call Errors (600-699)
     // ════════════════════════════════════════════════════════════════
-
     /// Cross-contract call failed
     CrossContractCallFailed = 600,
     /// External contract not configured

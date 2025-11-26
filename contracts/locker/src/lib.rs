@@ -12,17 +12,12 @@
 //! - Lock extensions
 //! - Lock transfers (ownership)
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, Env, Vec,
-};
 use astro_core_shared::{
     events::{emit_lock, emit_unlock, EventBuilder},
-    math::{safe_add, safe_sub, apply_bps},
-    types::{
-        SharedError, LockInfo, LockConfig,
-        extend_instance_ttl,
-    },
+    math::{apply_bps, safe_add, safe_sub},
+    types::{extend_instance_ttl, LockConfig, LockInfo, SharedError},
 };
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Vec};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Storage Keys
@@ -99,7 +94,11 @@ impl LiquidityLocker {
         extend_instance_ttl(&env);
 
         let events = EventBuilder::new(&env);
-        events.publish("locker", "initialized", (admin.clone(), env.ledger().timestamp()));
+        events.publish(
+            "locker",
+            "initialized",
+            (admin.clone(), env.ledger().timestamp()),
+        );
 
         Ok(())
     }
@@ -124,7 +123,10 @@ impl LiquidityLocker {
             return Err(SharedError::InvalidAmount);
         }
 
-        let config: LockConfig = env.storage().instance().get(&DataKey::Config)
+        let config: LockConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)?;
 
         let current_time = env.ledger().timestamp();
@@ -144,7 +146,11 @@ impl LiquidityLocker {
         token_client.transfer(&owner, &env.current_contract_address(), &amount);
 
         // Create lock
-        let lock_id: u64 = env.storage().instance().get(&DataKey::NextLockId).unwrap_or(1);
+        let lock_id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextLockId)
+            .unwrap_or(1);
 
         let lock_info = LockInfo {
             id: lock_id,
@@ -157,7 +163,9 @@ impl LiquidityLocker {
         };
 
         // Store lock
-        env.storage().persistent().set(&DataKey::Lock(lock_id), &lock_info);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Lock(lock_id), &lock_info);
 
         // Update user's lock list
         Self::add_lock_to_user(&env, &owner, lock_id);
@@ -168,10 +176,14 @@ impl LiquidityLocker {
         // Update total locked
         let total = Self::get_total_locked(&env, &lp_token);
         let new_total = safe_add(total, amount)?;
-        env.storage().persistent().set(&DataKey::TotalLocked(lp_token.clone()), &new_total);
+        env.storage()
+            .persistent()
+            .set(&DataKey::TotalLocked(lp_token.clone()), &new_total);
 
         // Increment lock ID
-        env.storage().instance().set(&DataKey::NextLockId, &(lock_id + 1));
+        env.storage()
+            .instance()
+            .set(&DataKey::NextLockId, &(lock_id + 1));
 
         emit_lock(&env, lock_id, &owner, &lp_token, amount, unlock_time);
         extend_instance_ttl(&env);
@@ -199,7 +211,11 @@ impl LiquidityLocker {
         token_client.transfer(&owner, &env.current_contract_address(), &amount);
 
         let current_time = env.ledger().timestamp();
-        let lock_id: u64 = env.storage().instance().get(&DataKey::NextLockId).unwrap_or(1);
+        let lock_id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextLockId)
+            .unwrap_or(1);
 
         // Permanent lock uses u64::MAX as unlock time (effectively never)
         let lock_info = LockInfo {
@@ -212,19 +228,29 @@ impl LiquidityLocker {
             unlocked: false,
         };
 
-        env.storage().persistent().set(&DataKey::Lock(lock_id), &lock_info);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Lock(lock_id), &lock_info);
 
         Self::add_lock_to_user(&env, &owner, lock_id);
         Self::add_lock_to_token(&env, &lp_token, lock_id);
 
         let total = Self::get_total_locked(&env, &lp_token);
         let new_total = safe_add(total, amount)?;
-        env.storage().persistent().set(&DataKey::TotalLocked(lp_token.clone()), &new_total);
+        env.storage()
+            .persistent()
+            .set(&DataKey::TotalLocked(lp_token.clone()), &new_total);
 
-        env.storage().instance().set(&DataKey::NextLockId, &(lock_id + 1));
+        env.storage()
+            .instance()
+            .set(&DataKey::NextLockId, &(lock_id + 1));
 
         let events = EventBuilder::new(&env);
-        events.publish("locker", "permanent_lock", (lock_id, owner.clone(), lp_token, amount));
+        events.publish(
+            "locker",
+            "permanent_lock",
+            (lock_id, owner.clone(), lp_token, amount),
+        );
 
         extend_instance_ttl(&env);
 
@@ -237,7 +263,9 @@ impl LiquidityLocker {
         Self::require_initialized(&env)?;
         Self::require_not_paused(&env)?;
 
-        let mut lock_info: LockInfo = env.storage().persistent()
+        let mut lock_info: LockInfo = env
+            .storage()
+            .persistent()
             .get(&DataKey::Lock(lock_id))
             .ok_or(SharedError::TokenNotFound)?;
 
@@ -264,7 +292,9 @@ impl LiquidityLocker {
 
         // Mark as unlocked
         lock_info.unlocked = true;
-        env.storage().persistent().set(&DataKey::Lock(lock_id), &lock_info);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Lock(lock_id), &lock_info);
 
         // Transfer LP tokens back to owner
         let token_client = token::Client::new(&env, &lock_info.lp_token);
@@ -273,7 +303,10 @@ impl LiquidityLocker {
         // Update total locked
         let total = Self::get_total_locked(&env, &lock_info.lp_token);
         let new_total = safe_sub(total, lock_info.amount)?;
-        env.storage().persistent().set(&DataKey::TotalLocked(lock_info.lp_token.clone()), &new_total);
+        env.storage().persistent().set(
+            &DataKey::TotalLocked(lock_info.lp_token.clone()),
+            &new_total,
+        );
 
         emit_unlock(&env, lock_id, &owner, &lock_info.lp_token, lock_info.amount);
         extend_instance_ttl(&env);
@@ -287,14 +320,19 @@ impl LiquidityLocker {
         Self::require_initialized(&env)?;
         Self::require_not_paused(&env)?;
 
-        let config: LockConfig = env.storage().instance().get(&DataKey::Config)
+        let config: LockConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)?;
 
         if !config.early_unlock_enabled {
             return Err(SharedError::InvalidState);
         }
 
-        let mut lock_info: LockInfo = env.storage().persistent()
+        let mut lock_info: LockInfo = env
+            .storage()
+            .persistent()
             .get(&DataKey::Lock(lock_id))
             .ok_or(SharedError::TokenNotFound)?;
 
@@ -313,7 +351,9 @@ impl LiquidityLocker {
 
         // Mark as unlocked
         lock_info.unlocked = true;
-        env.storage().persistent().set(&DataKey::Lock(lock_id), &lock_info);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Lock(lock_id), &lock_info);
 
         // Calculate penalty
         let penalty = apply_bps(lock_info.amount, config.early_unlock_penalty_bps)?;
@@ -323,21 +363,35 @@ impl LiquidityLocker {
 
         // Transfer penalty to treasury
         if penalty > 0 {
-            let treasury: Address = env.storage().instance().get(&DataKey::Treasury)
+            let treasury: Address = env
+                .storage()
+                .instance()
+                .get(&DataKey::Treasury)
                 .ok_or(SharedError::NotInitialized)?;
             token_client.transfer(&env.current_contract_address(), &treasury, &penalty);
         }
 
         // Transfer remaining to owner
-        token_client.transfer(&env.current_contract_address(), &owner, &amount_after_penalty);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &owner,
+            &amount_after_penalty,
+        );
 
         // Update total locked
         let total = Self::get_total_locked(&env, &lock_info.lp_token);
         let new_total = safe_sub(total, lock_info.amount)?;
-        env.storage().persistent().set(&DataKey::TotalLocked(lock_info.lp_token.clone()), &new_total);
+        env.storage().persistent().set(
+            &DataKey::TotalLocked(lock_info.lp_token.clone()),
+            &new_total,
+        );
 
         let events = EventBuilder::new(&env);
-        events.publish("locker", "early_unlock", (lock_id, owner, amount_after_penalty, penalty));
+        events.publish(
+            "locker",
+            "early_unlock",
+            (lock_id, owner, amount_after_penalty, penalty),
+        );
 
         extend_instance_ttl(&env);
 
@@ -345,12 +399,19 @@ impl LiquidityLocker {
     }
 
     /// Extend lock duration
-    pub fn extend_lock(env: Env, owner: Address, lock_id: u64, new_unlock_time: u64) -> Result<(), SharedError> {
+    pub fn extend_lock(
+        env: Env,
+        owner: Address,
+        lock_id: u64,
+        new_unlock_time: u64,
+    ) -> Result<(), SharedError> {
         owner.require_auth();
         Self::require_initialized(&env)?;
         Self::require_not_paused(&env)?;
 
-        let mut lock_info: LockInfo = env.storage().persistent()
+        let mut lock_info: LockInfo = env
+            .storage()
+            .persistent()
             .get(&DataKey::Lock(lock_id))
             .ok_or(SharedError::TokenNotFound)?;
 
@@ -372,7 +433,10 @@ impl LiquidityLocker {
             return Err(SharedError::InvalidTimestamp);
         }
 
-        let config: LockConfig = env.storage().instance().get(&DataKey::Config)
+        let config: LockConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)?;
 
         let current_time = env.ledger().timestamp();
@@ -383,7 +447,9 @@ impl LiquidityLocker {
         }
 
         lock_info.unlock_time = new_unlock_time;
-        env.storage().persistent().set(&DataKey::Lock(lock_id), &lock_info);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Lock(lock_id), &lock_info);
 
         let events = EventBuilder::new(&env);
         events.publish("locker", "lock_extended", (lock_id, new_unlock_time));
@@ -394,11 +460,18 @@ impl LiquidityLocker {
     }
 
     /// Transfer lock ownership
-    pub fn transfer_lock(env: Env, owner: Address, lock_id: u64, new_owner: Address) -> Result<(), SharedError> {
+    pub fn transfer_lock(
+        env: Env,
+        owner: Address,
+        lock_id: u64,
+        new_owner: Address,
+    ) -> Result<(), SharedError> {
         owner.require_auth();
         Self::require_initialized(&env)?;
 
-        let mut lock_info: LockInfo = env.storage().persistent()
+        let mut lock_info: LockInfo = env
+            .storage()
+            .persistent()
             .get(&DataKey::Lock(lock_id))
             .ok_or(SharedError::TokenNotFound)?;
 
@@ -412,7 +485,9 @@ impl LiquidityLocker {
 
         // Update owner
         lock_info.owner = new_owner.clone();
-        env.storage().persistent().set(&DataKey::Lock(lock_id), &lock_info);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Lock(lock_id), &lock_info);
 
         // Update user lock lists
         Self::remove_lock_from_user(&env, &owner, lock_id);
@@ -458,7 +533,9 @@ impl LiquidityLocker {
     pub fn set_treasury(env: Env, new_treasury: Address) -> Result<(), SharedError> {
         Self::require_admin(&env)?;
 
-        env.storage().instance().set(&DataKey::Treasury, &new_treasury);
+        env.storage()
+            .instance()
+            .set(&DataKey::Treasury, &new_treasury);
         extend_instance_ttl(&env);
 
         Ok(())
@@ -485,7 +562,9 @@ impl LiquidityLocker {
 
     /// Get all locks for a user
     pub fn get_user_locks(env: Env, user: Address) -> Vec<LockInfo> {
-        let lock_ids: Vec<u64> = env.storage().persistent()
+        let lock_ids: Vec<u64> = env
+            .storage()
+            .persistent()
             .get(&DataKey::UserLocks(user))
             .unwrap_or(Vec::new(&env));
 
@@ -501,7 +580,9 @@ impl LiquidityLocker {
 
     /// Get all locks for a token
     pub fn get_token_locks(env: Env, lp_token: Address) -> Vec<LockInfo> {
-        let lock_ids: Vec<u64> = env.storage().persistent()
+        let lock_ids: Vec<u64> = env
+            .storage()
+            .persistent()
             .get(&DataKey::TokenLocks(lp_token))
             .unwrap_or(Vec::new(&env));
 
@@ -522,24 +603,34 @@ impl LiquidityLocker {
 
     /// Get configuration
     pub fn get_config(env: Env) -> Result<LockConfig, SharedError> {
-        env.storage().instance().get(&DataKey::Config)
+        env.storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)
     }
 
     /// Get admin address
     pub fn admin(env: Env) -> Result<Address, SharedError> {
-        env.storage().instance().get(&DataKey::Admin)
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)
     }
 
     /// Check if contract is paused
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
     }
 
     /// Get next lock ID
     pub fn next_lock_id(env: Env) -> u64 {
-        env.storage().instance().get(&DataKey::NextLockId).unwrap_or(1)
+        env.storage()
+            .instance()
+            .get(&DataKey::NextLockId)
+            .unwrap_or(1)
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -547,7 +638,9 @@ impl LiquidityLocker {
     // ────────────────────────────────────────────────────────────────────────
 
     fn require_initialized(env: &Env) -> Result<(), SharedError> {
-        let initialized: bool = env.storage().instance()
+        let initialized: bool = env
+            .storage()
+            .instance()
             .get(&DataKey::Initialized)
             .unwrap_or(false);
 
@@ -558,7 +651,9 @@ impl LiquidityLocker {
     }
 
     fn require_not_paused(env: &Env) -> Result<(), SharedError> {
-        let paused: bool = env.storage().instance()
+        let paused: bool = env
+            .storage()
+            .instance()
             .get(&DataKey::Paused)
             .unwrap_or(false);
 
@@ -569,7 +664,9 @@ impl LiquidityLocker {
     }
 
     fn require_admin(env: &Env) -> Result<(), SharedError> {
-        let admin: Address = env.storage().instance()
+        let admin: Address = env
+            .storage()
+            .instance()
             .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)?;
 
@@ -578,21 +675,28 @@ impl LiquidityLocker {
     }
 
     fn get_total_locked(env: &Env, lp_token: &Address) -> i128 {
-        env.storage().persistent()
+        env.storage()
+            .persistent()
             .get(&DataKey::TotalLocked(lp_token.clone()))
             .unwrap_or(0)
     }
 
     fn add_lock_to_user(env: &Env, user: &Address, lock_id: u64) {
-        let mut locks: Vec<u64> = env.storage().persistent()
+        let mut locks: Vec<u64> = env
+            .storage()
+            .persistent()
             .get(&DataKey::UserLocks(user.clone()))
             .unwrap_or(Vec::new(env));
         locks.push_back(lock_id);
-        env.storage().persistent().set(&DataKey::UserLocks(user.clone()), &locks);
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserLocks(user.clone()), &locks);
     }
 
     fn remove_lock_from_user(env: &Env, user: &Address, lock_id: u64) {
-        let locks: Vec<u64> = env.storage().persistent()
+        let locks: Vec<u64> = env
+            .storage()
+            .persistent()
             .get(&DataKey::UserLocks(user.clone()))
             .unwrap_or(Vec::new(env));
 
@@ -602,15 +706,21 @@ impl LiquidityLocker {
                 new_locks.push_back(id);
             }
         }
-        env.storage().persistent().set(&DataKey::UserLocks(user.clone()), &new_locks);
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserLocks(user.clone()), &new_locks);
     }
 
     fn add_lock_to_token(env: &Env, token: &Address, lock_id: u64) {
-        let mut locks: Vec<u64> = env.storage().persistent()
+        let mut locks: Vec<u64> = env
+            .storage()
+            .persistent()
             .get(&DataKey::TokenLocks(token.clone()))
             .unwrap_or(Vec::new(env));
         locks.push_back(lock_id);
-        env.storage().persistent().set(&DataKey::TokenLocks(token.clone()), &locks);
+        env.storage()
+            .persistent()
+            .set(&DataKey::TokenLocks(token.clone()), &locks);
     }
 }
 
@@ -623,7 +733,10 @@ mod tests {
     use super::*;
     use soroban_sdk::testutils::{Address as _, Ledger as _};
 
-    fn create_token<'a>(env: &Env, admin: &Address) -> (token::Client<'a>, token::StellarAssetClient<'a>) {
+    fn create_token<'a>(
+        env: &Env,
+        admin: &Address,
+    ) -> (token::Client<'a>, token::StellarAssetClient<'a>) {
         let contract_id = env.register_stellar_asset_contract_v2(admin.clone());
         (
             token::Client::new(env, &contract_id.address()),
@@ -633,7 +746,7 @@ mod tests {
 
     fn default_config() -> LockConfig {
         LockConfig {
-            min_lock_duration: 86400, // 1 day
+            min_lock_duration: 86400,    // 1 day
             max_lock_duration: 31536000, // 1 year
             early_unlock_enabled: true,
             early_unlock_penalty_bps: 2500, // 25%
@@ -683,7 +796,10 @@ mod tests {
         let lock_id = client.lock(&user, &lp_token.address, &lock_amount, &unlock_time);
 
         assert_eq!(lock_id, 1);
-        assert_eq!(client.get_total_locked_amount(&lp_token.address), lock_amount);
+        assert_eq!(
+            client.get_total_locked_amount(&lp_token.address),
+            lock_amount
+        );
 
         // Check lock info
         let lock_info = client.get_lock(&lock_id).unwrap();
@@ -787,7 +903,12 @@ mod tests {
 
         let lock_amount = 100_000_000_000_i128;
         let original_unlock_time = 1000 + 7 * 86400;
-        let lock_id = client.lock(&user, &lp_token.address, &lock_amount, &original_unlock_time);
+        let lock_id = client.lock(
+            &user,
+            &lp_token.address,
+            &lock_amount,
+            &original_unlock_time,
+        );
 
         // Extend lock
         let new_unlock_time = 1000 + 30 * 86400;

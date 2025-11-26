@@ -15,13 +15,13 @@
 
 #![no_std]
 
-pub mod types;
-pub mod math;
-pub mod interfaces;
 pub mod events;
+pub mod interfaces;
+pub mod math;
+pub mod types;
 
 // Re-export commonly used items
-pub use types::*;
-pub use math::*;
-pub use interfaces::*;
 pub use events::*;
+pub use interfaces::*;
+pub use math::*;
+pub use types::*;

@@ -52,14 +52,16 @@ pub mod ttl {
 
 /// Helper to extend instance storage TTL
 pub fn extend_instance_ttl(env: &soroban_sdk::Env) {
-    env.storage().instance().extend_ttl(
-        ttl::INSTANCE_TTL_THRESHOLD,
-        ttl::INSTANCE_TTL_EXTEND,
-    );
+    env.storage()
+        .instance()
+        .extend_ttl(ttl::INSTANCE_TTL_THRESHOLD, ttl::INSTANCE_TTL_EXTEND);
 }
 
 /// Helper to extend persistent storage TTL
-pub fn extend_persistent_ttl<K: soroban_sdk::TryFromVal<soroban_sdk::Env, soroban_sdk::Val> + soroban_sdk::IntoVal<soroban_sdk::Env, soroban_sdk::Val>>(
+pub fn extend_persistent_ttl<
+    K: soroban_sdk::TryFromVal<soroban_sdk::Env, soroban_sdk::Val>
+        + soroban_sdk::IntoVal<soroban_sdk::Env, soroban_sdk::Val>,
+>(
     env: &soroban_sdk::Env,
     key: &K,
 ) {

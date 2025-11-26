@@ -60,8 +60,7 @@ pub struct DistributionConfig {
 impl DistributionConfig {
     /// Validate that percentages sum to 100%
     pub fn is_valid(&self) -> bool {
-        self.treasury_bps + self.staking_bps + self.burn_bps == 10_000
-            && self.min_distribution >= 0
+        self.treasury_bps + self.staking_bps + self.burn_bps == 10_000 && self.min_distribution >= 0
     }
 }
 

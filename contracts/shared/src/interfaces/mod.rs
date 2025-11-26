@@ -3,8 +3,8 @@
 //! Type-safe client wrappers for cross-contract calls.
 //! These avoid the need to import WASM files directly.
 
-use soroban_sdk::{Address, Env, Symbol, Vec, IntoVal};
-use crate::types::{DistributionResult, UserStake, LockInfo, TokenMetadata, GraduationInfo};
+use crate::types::{DistributionResult, GraduationInfo, LockInfo, TokenMetadata, UserStake};
+use soroban_sdk::{Address, Env, IntoVal, Symbol, Vec};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Fee Distributor Client
@@ -29,10 +29,10 @@ impl<'a> FeeDistributorClient<'a> {
         self.env.invoke_contract(
             &self.contract_id,
             &Symbol::new(self.env, "distribute"),
-            Vec::from_array(self.env, [
-                token.into_val(self.env),
-                amount.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [token.into_val(self.env), amount.into_val(self.env)],
+            ),
         )
     }
 
@@ -69,10 +69,10 @@ impl<'a> StakingPoolClient<'a> {
         self.env.invoke_contract::<()>(
             &self.contract_id,
             &Symbol::new(self.env, "stake"),
-            Vec::from_array(self.env, [
-                user.into_val(self.env),
-                amount.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [user.into_val(self.env), amount.into_val(self.env)],
+            ),
         );
     }
 
@@ -81,10 +81,10 @@ impl<'a> StakingPoolClient<'a> {
         self.env.invoke_contract::<()>(
             &self.contract_id,
             &Symbol::new(self.env, "unstake"),
-            Vec::from_array(self.env, [
-                user.into_val(self.env),
-                amount.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [user.into_val(self.env), amount.into_val(self.env)],
+            ),
         );
     }
 
@@ -93,10 +93,10 @@ impl<'a> StakingPoolClient<'a> {
         self.env.invoke_contract::<()>(
             &self.contract_id,
             &Symbol::new(self.env, "add_rewards"),
-            Vec::from_array(self.env, [
-                token.into_val(self.env),
-                amount.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [token.into_val(self.env), amount.into_val(self.env)],
+            ),
         );
     }
 
@@ -138,22 +138,19 @@ impl<'a> LiquidityLockerClient<'a> {
     }
 
     /// Lock LP tokens
-    pub fn lock(
-        &self,
-        owner: &Address,
-        lp_token: &Address,
-        amount: i128,
-        unlock_time: u64,
-    ) -> u64 {
+    pub fn lock(&self, owner: &Address, lp_token: &Address, amount: i128, unlock_time: u64) -> u64 {
         self.env.invoke_contract(
             &self.contract_id,
             &Symbol::new(self.env, "lock"),
-            Vec::from_array(self.env, [
-                owner.into_val(self.env),
-                lp_token.into_val(self.env),
-                amount.into_val(self.env),
-                unlock_time.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [
+                    owner.into_val(self.env),
+                    lp_token.into_val(self.env),
+                    amount.into_val(self.env),
+                    unlock_time.into_val(self.env),
+                ],
+            ),
         )
     }
 
@@ -162,10 +159,10 @@ impl<'a> LiquidityLockerClient<'a> {
         self.env.invoke_contract(
             &self.contract_id,
             &Symbol::new(self.env, "unlock"),
-            Vec::from_array(self.env, [
-                owner.into_val(self.env),
-                lock_id.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [owner.into_val(self.env), lock_id.into_val(self.env)],
+            ),
         )
     }
 
@@ -202,11 +199,14 @@ impl<'a> TreasuryVaultClient<'a> {
         self.env.invoke_contract::<()>(
             &self.contract_id,
             &Symbol::new(self.env, "notify_deposit"),
-            Vec::from_array(self.env, [
-                token.into_val(self.env),
-                from.into_val(self.env),
-                amount.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [
+                    token.into_val(self.env),
+                    from.into_val(self.env),
+                    amount.into_val(self.env),
+                ],
+            ),
         );
     }
 
@@ -249,12 +249,15 @@ impl<'a> BridgeClient<'a> {
         self.env.invoke_contract(
             &self.contract_id,
             &Symbol::new(self.env, "graduate_token"),
-            Vec::from_array(self.env, [
-                token.into_val(self.env),
-                token_amount.into_val(self.env),
-                quote_amount.into_val(self.env),
-                metadata.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [
+                    token.into_val(self.env),
+                    token_amount.into_val(self.env),
+                    quote_amount.into_val(self.env),
+                    metadata.into_val(self.env),
+                ],
+            ),
         )
     }
 
@@ -297,12 +300,15 @@ impl<'a> AmmPairClient<'a> {
         self.env.invoke_contract::<()>(
             &self.contract_id,
             &Symbol::new(self.env, "initialize"),
-            Vec::from_array(self.env, [
-                token_0.into_val(self.env),
-                token_1.into_val(self.env),
-                factory.into_val(self.env),
-                fee_to.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [
+                    token_0.into_val(self.env),
+                    token_1.into_val(self.env),
+                    factory.into_val(self.env),
+                    fee_to.into_val(self.env),
+                ],
+            ),
         );
     }
 
@@ -328,34 +334,34 @@ impl<'a> AmmPairClient<'a> {
         self.env.invoke_contract(
             &self.contract_id,
             &Symbol::new(self.env, "add_liquidity"),
-            Vec::from_array(self.env, [
-                sender.into_val(self.env),
-                amount_0.into_val(self.env),
-                amount_1.into_val(self.env),
-                min_0.into_val(self.env),
-                min_1.into_val(self.env),
-                deadline.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [
+                    sender.into_val(self.env),
+                    amount_0.into_val(self.env),
+                    amount_1.into_val(self.env),
+                    min_0.into_val(self.env),
+                    min_1.into_val(self.env),
+                    deadline.into_val(self.env),
+                ],
+            ),
         )
     }
 
     /// Swap tokens
-    pub fn swap(
-        &self,
-        user: &Address,
-        token_in: &Address,
-        amount_in: i128,
-        min_out: i128,
-    ) -> i128 {
+    pub fn swap(&self, user: &Address, token_in: &Address, amount_in: i128, min_out: i128) -> i128 {
         self.env.invoke_contract(
             &self.contract_id,
             &Symbol::new(self.env, "swap"),
-            Vec::from_array(self.env, [
-                user.into_val(self.env),
-                token_in.into_val(self.env),
-                amount_in.into_val(self.env),
-                min_out.into_val(self.env),
-            ]),
+            Vec::from_array(
+                self.env,
+                [
+                    user.into_val(self.env),
+                    token_in.into_val(self.env),
+                    amount_in.into_val(self.env),
+                    min_out.into_val(self.env),
+                ],
+            ),
         )
     }
 

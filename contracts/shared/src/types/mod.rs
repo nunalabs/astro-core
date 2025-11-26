@@ -2,12 +2,12 @@
 //!
 //! Common data structures used across all Astro ecosystem contracts.
 
-mod errors;
 mod config;
-mod token;
+mod errors;
 mod storage;
+mod token;
 
-pub use errors::*;
 pub use config::*;
-pub use token::*;
+pub use errors::*;
 pub use storage::*;
+pub use token::*;

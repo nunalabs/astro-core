@@ -3,7 +3,7 @@
 //! Common event emission helpers for the Astro ecosystem.
 //! Using structured events for better indexing.
 
-use soroban_sdk::{Address, Env, Symbol, symbol_short};
+use soroban_sdk::{symbol_short, Address, Env, Symbol};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Event Topics (short symbols for gas efficiency)
@@ -116,7 +116,11 @@ pub fn emit_distribution(
 /// Emit admin change event
 pub fn emit_admin_changed(env: &Env, old_admin: &Address, new_admin: &Address) {
     let topics = (TOPIC_ADMIN, Symbol::new(env, "changed"));
-    let data = (old_admin.clone(), new_admin.clone(), env.ledger().timestamp());
+    let data = (
+        old_admin.clone(),
+        new_admin.clone(),
+        env.ledger().timestamp(),
+    );
     env.events().publish(topics, data);
 }
 
@@ -142,7 +146,10 @@ impl<'a> EventBuilder<'a> {
     }
 
     /// Publish a custom event with symbol topic
-    pub fn publish<T: soroban_sdk::IntoVal<Env, soroban_sdk::Val>, D: soroban_sdk::IntoVal<Env, soroban_sdk::Val>>(
+    pub fn publish<
+        T: soroban_sdk::IntoVal<Env, soroban_sdk::Val>,
+        D: soroban_sdk::IntoVal<Env, soroban_sdk::Val>,
+    >(
         &self,
         topic: &str,
         sub_topic: T,

@@ -9,17 +9,12 @@
 //!
 //! Supports multiple tokens and configurable distribution ratios.
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, Env, Vec,
-};
 use astro_core_shared::{
     events::{emit_distribution, EventBuilder},
-    math::{safe_add, safe_mul, safe_div, BPS_DENOMINATOR},
-    types::{
-        DistributionConfig, DistributionResult, SharedError,
-        extend_instance_ttl,
-    },
+    math::{safe_add, safe_div, safe_mul, BPS_DENOMINATOR},
+    types::{extend_instance_ttl, DistributionConfig, DistributionResult, SharedError},
 };
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Vec};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Storage Keys
@@ -73,7 +68,10 @@ impl FeeDistributor {
         }
 
         // Validate addresses are different
-        if treasury_vault == staking_pool || treasury_vault == burn_address || staking_pool == burn_address {
+        if treasury_vault == staking_pool
+            || treasury_vault == burn_address
+            || staking_pool == burn_address
+        {
             return Err(SharedError::InvalidAddress);
         }
 
@@ -82,9 +80,9 @@ impl FeeDistributor {
             treasury_vault,
             staking_pool,
             burn_address,
-            treasury_bps: 5000,  // 50%
-            staking_bps: 3000,   // 30%
-            burn_bps: 2000,      // 20%
+            treasury_bps: 5000,           // 50%
+            staking_bps: 3000,            // 30%
+            burn_bps: 2000,               // 20%
             min_distribution: 10_000_000, // 1 token minimum (7 decimals)
         };
 
@@ -98,13 +96,19 @@ impl FeeDistributor {
         env.storage().instance().set(&DataKey::Config, &config);
         env.storage().instance().set(&DataKey::Initialized, &true);
         env.storage().instance().set(&DataKey::Paused, &false);
-        env.storage().instance().set(&DataKey::SupportedTokens, &Vec::<Address>::new(&env));
+        env.storage()
+            .instance()
+            .set(&DataKey::SupportedTokens, &Vec::<Address>::new(&env));
 
         extend_instance_ttl(&env);
 
         // Emit init event
         let events = EventBuilder::new(&env);
-        events.publish("fee_dist", "initialized", (admin.clone(), env.ledger().timestamp()));
+        events.publish(
+            "fee_dist",
+            "initialized",
+            (admin.clone(), env.ledger().timestamp()),
+        );
 
         Ok(())
     }
@@ -135,7 +139,9 @@ impl FeeDistributor {
         // Add to pending fees
         let current = Self::get_pending_fees(&env, &token);
         let new_pending = safe_add(current, amount)?;
-        env.storage().persistent().set(&DataKey::PendingFees(token.clone()), &new_pending);
+        env.storage()
+            .persistent()
+            .set(&DataKey::PendingFees(token.clone()), &new_pending);
 
         // Ensure token is in supported list
         Self::add_supported_token(&env, &token);
@@ -150,7 +156,10 @@ impl FeeDistributor {
         Self::require_initialized(&env)?;
         Self::require_not_paused(&env)?;
 
-        let config: DistributionConfig = env.storage().instance().get(&DataKey::Config)
+        let config: DistributionConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)?;
 
         let pending = Self::get_pending_fees(&env, &token);
@@ -164,18 +173,15 @@ impl FeeDistributor {
         // Calculate distribution amounts
         let treasury_amount = safe_div(
             safe_mul(pending, config.treasury_bps as i128)?,
-            BPS_DENOMINATOR
+            BPS_DENOMINATOR,
         )?;
 
         let staking_amount = safe_div(
             safe_mul(pending, config.staking_bps as i128)?,
-            BPS_DENOMINATOR
+            BPS_DENOMINATOR,
         )?;
 
-        let burn_amount = safe_div(
-            safe_mul(pending, config.burn_bps as i128)?,
-            BPS_DENOMINATOR
-        )?;
+        let burn_amount = safe_div(safe_mul(pending, config.burn_bps as i128)?, BPS_DENOMINATOR)?;
 
         // Handle rounding - any dust goes to treasury
         let total_calculated = safe_add(safe_add(treasury_amount, staking_amount)?, burn_amount)?;
@@ -187,7 +193,7 @@ impl FeeDistributor {
             token_client.transfer(
                 &env.current_contract_address(),
                 &config.treasury_vault,
-                &final_treasury
+                &final_treasury,
             );
         }
 
@@ -195,7 +201,7 @@ impl FeeDistributor {
             token_client.transfer(
                 &env.current_contract_address(),
                 &config.staking_pool,
-                &staking_amount
+                &staking_amount,
             );
         }
 
@@ -204,19 +210,30 @@ impl FeeDistributor {
             token_client.transfer(
                 &env.current_contract_address(),
                 &config.burn_address,
-                &burn_amount
+                &burn_amount,
             );
         }
 
         // Update state
-        env.storage().persistent().set(&DataKey::PendingFees(token.clone()), &0_i128);
+        env.storage()
+            .persistent()
+            .set(&DataKey::PendingFees(token.clone()), &0_i128);
 
         let prev_total = Self::get_total_distributed(&env, &token);
         let new_total = safe_add(prev_total, pending)?;
-        env.storage().persistent().set(&DataKey::TotalDistributed(token.clone()), &new_total);
+        env.storage()
+            .persistent()
+            .set(&DataKey::TotalDistributed(token.clone()), &new_total);
 
         // Emit event
-        emit_distribution(&env, &token, pending, final_treasury, staking_amount, burn_amount);
+        emit_distribution(
+            &env,
+            &token,
+            pending,
+            final_treasury,
+            staking_amount,
+            burn_amount,
+        );
 
         extend_instance_ttl(&env);
 
@@ -240,7 +257,10 @@ impl FeeDistributor {
 
         for token in tokens.iter() {
             let pending = Self::get_pending_fees(&env, &token);
-            let config: DistributionConfig = env.storage().instance().get(&DataKey::Config)
+            let config: DistributionConfig = env
+                .storage()
+                .instance()
+                .get(&DataKey::Config)
                 .ok_or(SharedError::NotInitialized)?;
 
             if pending >= config.min_distribution {
@@ -259,10 +279,7 @@ impl FeeDistributor {
     // ────────────────────────────────────────────────────────────────────────
 
     /// Update distribution configuration
-    pub fn update_config(
-        env: Env,
-        new_config: DistributionConfig,
-    ) -> Result<(), SharedError> {
+    pub fn update_config(env: Env, new_config: DistributionConfig) -> Result<(), SharedError> {
         Self::require_admin(&env)?;
 
         // Validate percentages sum to 100%
@@ -288,14 +305,21 @@ impl FeeDistributor {
     pub fn set_admin(env: Env, new_admin: Address) -> Result<(), SharedError> {
         Self::require_admin(&env)?;
 
-        let old_admin: Address = env.storage().instance().get(&DataKey::Admin)
+        let old_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)?;
 
         env.storage().instance().set(&DataKey::Admin, &new_admin);
 
         // Emit admin change event
         let events = EventBuilder::new(&env);
-        events.publish("fee_dist", "admin_changed", (old_admin, new_admin, env.ledger().timestamp()));
+        events.publish(
+            "fee_dist",
+            "admin_changed",
+            (old_admin, new_admin, env.ledger().timestamp()),
+        );
 
         extend_instance_ttl(&env);
         Ok(())
@@ -324,7 +348,11 @@ impl FeeDistributor {
         Self::require_admin(&env)?;
 
         // Only allow emergency withdrawal when paused
-        let paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
         if !paused {
             return Err(SharedError::ContractNotPaused);
         }
@@ -333,7 +361,11 @@ impl FeeDistributor {
         token_client.transfer(&env.current_contract_address(), &to, &amount);
 
         let events = EventBuilder::new(&env);
-        events.publish("fee_dist", "emergency_withdraw", (token, to, amount, env.ledger().timestamp()));
+        events.publish(
+            "fee_dist",
+            "emergency_withdraw",
+            (token, to, amount, env.ledger().timestamp()),
+        );
 
         Ok(())
     }
@@ -344,7 +376,9 @@ impl FeeDistributor {
 
     /// Get current distribution configuration
     pub fn get_config(env: Env) -> Result<DistributionConfig, SharedError> {
-        env.storage().instance().get(&DataKey::Config)
+        env.storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)
     }
 
@@ -365,13 +399,18 @@ impl FeeDistributor {
 
     /// Get admin address
     pub fn admin(env: Env) -> Result<Address, SharedError> {
-        env.storage().instance().get(&DataKey::Admin)
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)
     }
 
     /// Check if contract is paused
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
     }
 
     /// Get contract balance for a token
@@ -385,7 +424,9 @@ impl FeeDistributor {
     // ────────────────────────────────────────────────────────────────────────
 
     fn require_initialized(env: &Env) -> Result<(), SharedError> {
-        let initialized: bool = env.storage().instance()
+        let initialized: bool = env
+            .storage()
+            .instance()
             .get(&DataKey::Initialized)
             .unwrap_or(false);
 
@@ -396,7 +437,9 @@ impl FeeDistributor {
     }
 
     fn require_not_paused(env: &Env) -> Result<(), SharedError> {
-        let paused: bool = env.storage().instance()
+        let paused: bool = env
+            .storage()
+            .instance()
             .get(&DataKey::Paused)
             .unwrap_or(false);
 
@@ -407,7 +450,9 @@ impl FeeDistributor {
     }
 
     fn require_admin(env: &Env) -> Result<(), SharedError> {
-        let admin: Address = env.storage().instance()
+        let admin: Address = env
+            .storage()
+            .instance()
             .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)?;
 
@@ -416,19 +461,22 @@ impl FeeDistributor {
     }
 
     fn get_pending_fees(env: &Env, token: &Address) -> i128 {
-        env.storage().persistent()
+        env.storage()
+            .persistent()
             .get(&DataKey::PendingFees(token.clone()))
             .unwrap_or(0)
     }
 
     fn get_total_distributed(env: &Env, token: &Address) -> i128 {
-        env.storage().persistent()
+        env.storage()
+            .persistent()
             .get(&DataKey::TotalDistributed(token.clone()))
             .unwrap_or(0)
     }
 
     fn get_supported_tokens(env: &Env) -> Vec<Address> {
-        env.storage().instance()
+        env.storage()
+            .instance()
             .get(&DataKey::SupportedTokens)
             .unwrap_or(Vec::new(env))
     }
@@ -444,7 +492,9 @@ impl FeeDistributor {
         }
 
         tokens.push_back(token.clone());
-        env.storage().instance().set(&DataKey::SupportedTokens, &tokens);
+        env.storage()
+            .instance()
+            .set(&DataKey::SupportedTokens, &tokens);
     }
 }
 
@@ -457,7 +507,10 @@ mod tests {
     use super::*;
     use soroban_sdk::testutils::Address as _;
 
-    fn create_token<'a>(env: &Env, admin: &Address) -> (token::Client<'a>, token::StellarAssetClient<'a>) {
+    fn create_token<'a>(
+        env: &Env,
+        admin: &Address,
+    ) -> (token::Client<'a>, token::StellarAssetClient<'a>) {
         let contract_id = env.register_stellar_asset_contract_v2(admin.clone());
         (
             token::Client::new(env, &contract_id.address()),

@@ -18,13 +18,11 @@
 //! - Programmable access control
 //! - Governance-ready
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, Env, Vec,
-};
 use astro_core_shared::{
-    events::{emit_deposit, emit_withdraw, emit_admin_changed, emit_paused, EventBuilder},
-    types::{SharedError, extend_instance_ttl},
+    events::{emit_admin_changed, emit_deposit, emit_paused, emit_withdraw, EventBuilder},
+    types::{extend_instance_ttl, SharedError},
 };
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Vec};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Storage Keys
@@ -74,8 +72,12 @@ impl TreasuryVault {
 
         // Initialize empty token list
         let empty_list: Vec<Address> = Vec::new(&env);
-        env.storage().instance().set(&DataKey::TokenList, &empty_list);
-        env.storage().instance().set(&DataKey::AllowedSpenders, &empty_list);
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenList, &empty_list);
+        env.storage()
+            .instance()
+            .set(&DataKey::AllowedSpenders, &empty_list);
 
         // Initialize state
         env.storage().instance().set(&DataKey::Initialized, &true);
@@ -84,7 +86,11 @@ impl TreasuryVault {
         extend_instance_ttl(&env);
 
         let events = EventBuilder::new(&env);
-        events.publish("treasury", "initialized", (admin.clone(), env.ledger().timestamp()));
+        events.publish(
+            "treasury",
+            "initialized",
+            (admin.clone(), env.ledger().timestamp()),
+        );
 
         Ok(())
     }
@@ -101,7 +107,12 @@ impl TreasuryVault {
     /// * `token` - Address of the SAC token
     /// * `from` - Address that sent the tokens
     /// * `amount` - Amount deposited
-    pub fn notify_deposit(env: Env, token: Address, from: Address, amount: i128) -> Result<(), SharedError> {
+    pub fn notify_deposit(
+        env: Env,
+        token: Address,
+        from: Address,
+        amount: i128,
+    ) -> Result<(), SharedError> {
         Self::require_initialized(&env)?;
 
         if amount <= 0 {
@@ -118,7 +129,12 @@ impl TreasuryVault {
     }
 
     /// Direct deposit - transfers tokens and notifies in one call
-    pub fn deposit(env: Env, from: Address, token: Address, amount: i128) -> Result<(), SharedError> {
+    pub fn deposit(
+        env: Env,
+        from: Address,
+        token: Address,
+        amount: i128,
+    ) -> Result<(), SharedError> {
         from.require_auth();
         Self::require_initialized(&env)?;
         Self::require_not_paused(&env)?;
@@ -151,7 +167,12 @@ impl TreasuryVault {
     /// * `token` - SAC token address to withdraw
     /// * `to` - Destination address
     /// * `amount` - Amount to withdraw
-    pub fn withdraw(env: Env, token: Address, to: Address, amount: i128) -> Result<(), SharedError> {
+    pub fn withdraw(
+        env: Env,
+        token: Address,
+        to: Address,
+        amount: i128,
+    ) -> Result<(), SharedError> {
         Self::require_initialized(&env)?;
         Self::require_not_paused(&env)?;
         Self::require_admin(&env)?;
@@ -233,7 +254,11 @@ impl TreasuryVault {
         token_client.transfer(&env.current_contract_address(), &to, &amount);
 
         let events = EventBuilder::new(&env);
-        events.publish("treasury", "spent", (spender, token, to, amount, env.ledger().timestamp()));
+        events.publish(
+            "treasury",
+            "spent",
+            (spender, token, to, amount, env.ledger().timestamp()),
+        );
 
         extend_instance_ttl(&env);
 
@@ -253,7 +278,10 @@ impl TreasuryVault {
         Self::require_initialized(&env)?;
         Self::require_admin(&env)?;
 
-        let old_admin: Address = env.storage().instance().get(&DataKey::Admin)
+        let old_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)?;
 
         env.storage().instance().set(&DataKey::Admin, &new_admin);
@@ -269,7 +297,9 @@ impl TreasuryVault {
         Self::require_initialized(&env)?;
         Self::require_admin(&env)?;
 
-        env.storage().instance().set(&DataKey::FeeDistributor, &fee_distributor);
+        env.storage()
+            .instance()
+            .set(&DataKey::FeeDistributor, &fee_distributor);
         extend_instance_ttl(&env);
 
         Ok(())
@@ -280,7 +310,9 @@ impl TreasuryVault {
         Self::require_initialized(&env)?;
         Self::require_admin(&env)?;
 
-        let mut spenders: Vec<Address> = env.storage().instance()
+        let mut spenders: Vec<Address> = env
+            .storage()
+            .instance()
             .get(&DataKey::AllowedSpenders)
             .unwrap_or(Vec::new(&env));
 
@@ -292,10 +324,16 @@ impl TreasuryVault {
         }
 
         spenders.push_back(spender.clone());
-        env.storage().instance().set(&DataKey::AllowedSpenders, &spenders);
+        env.storage()
+            .instance()
+            .set(&DataKey::AllowedSpenders, &spenders);
 
         let events = EventBuilder::new(&env);
-        events.publish("treasury", "spender_added", (spender, env.ledger().timestamp()));
+        events.publish(
+            "treasury",
+            "spender_added",
+            (spender, env.ledger().timestamp()),
+        );
 
         extend_instance_ttl(&env);
 
@@ -307,7 +345,9 @@ impl TreasuryVault {
         Self::require_initialized(&env)?;
         Self::require_admin(&env)?;
 
-        let spenders: Vec<Address> = env.storage().instance()
+        let spenders: Vec<Address> = env
+            .storage()
+            .instance()
             .get(&DataKey::AllowedSpenders)
             .unwrap_or(Vec::new(&env));
 
@@ -318,10 +358,16 @@ impl TreasuryVault {
             }
         }
 
-        env.storage().instance().set(&DataKey::AllowedSpenders, &new_spenders);
+        env.storage()
+            .instance()
+            .set(&DataKey::AllowedSpenders, &new_spenders);
 
         let events = EventBuilder::new(&env);
-        events.publish("treasury", "spender_removed", (spender, env.ledger().timestamp()));
+        events.publish(
+            "treasury",
+            "spender_removed",
+            (spender, env.ledger().timestamp()),
+        );
 
         extend_instance_ttl(&env);
 
@@ -335,7 +381,10 @@ impl TreasuryVault {
 
         env.storage().instance().set(&DataKey::Paused, &paused);
 
-        let admin: Address = env.storage().instance().get(&DataKey::Admin)
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)?;
 
         emit_paused(&env, paused, &admin);
@@ -351,7 +400,9 @@ impl TreasuryVault {
     /// Get the current admin address.
     pub fn get_admin(env: Env) -> Result<Address, SharedError> {
         Self::require_initialized(&env)?;
-        env.storage().instance().get(&DataKey::Admin)
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)
     }
 
@@ -383,7 +434,10 @@ impl TreasuryVault {
 
     /// Check if the contract is paused.
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
     }
 
     /// Get fee distributor address
@@ -403,7 +457,11 @@ impl TreasuryVault {
     }
 
     fn require_not_paused(env: &Env) -> Result<(), SharedError> {
-        let paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
         if paused {
             return Err(SharedError::ContractPaused);
         }
@@ -411,7 +469,9 @@ impl TreasuryVault {
     }
 
     fn require_admin(env: &Env) -> Result<(), SharedError> {
-        let admin: Address = env.storage().instance()
+        let admin: Address = env
+            .storage()
+            .instance()
             .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)?;
         admin.require_auth();
@@ -420,14 +480,20 @@ impl TreasuryVault {
 
     fn is_allowed_spender(env: &Env, spender: &Address) -> bool {
         // Admin is always allowed
-        if let Some(admin) = env.storage().instance().get::<DataKey, Address>(&DataKey::Admin) {
+        if let Some(admin) = env
+            .storage()
+            .instance()
+            .get::<DataKey, Address>(&DataKey::Admin)
+        {
             if admin == *spender {
                 return true;
             }
         }
 
         // Check allowed spenders list
-        let spenders: Vec<Address> = env.storage().instance()
+        let spenders: Vec<Address> = env
+            .storage()
+            .instance()
             .get(&DataKey::AllowedSpenders)
             .unwrap_or(Vec::new(env));
 

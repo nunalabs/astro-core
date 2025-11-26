@@ -11,17 +11,12 @@
 //! - Compound rewards automatically
 //! - Time-weighted reward distribution
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, Env, Vec,
-};
 use astro_core_shared::{
-    events::{emit_stake, emit_unstake, emit_claim, EventBuilder},
-    math::{safe_add, safe_sub, safe_mul, safe_div, PRECISION},
-    types::{
-        SharedError, UserStake, StakingConfig,
-        extend_instance_ttl,
-    },
+    events::{emit_claim, emit_stake, emit_unstake, EventBuilder},
+    math::{safe_add, safe_div, safe_mul, safe_sub, PRECISION},
+    types::{extend_instance_ttl, SharedError, StakingConfig, UserStake},
 };
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Vec};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Storage Keys
@@ -87,18 +82,28 @@ impl StakingPool {
 
         // Store initial state
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::StakeToken, &stake_token);
-        env.storage().instance().set(&DataKey::FeeDistributor, &fee_distributor);
+        env.storage()
+            .instance()
+            .set(&DataKey::StakeToken, &stake_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::FeeDistributor, &fee_distributor);
         env.storage().instance().set(&DataKey::Config, &config);
         env.storage().instance().set(&DataKey::Initialized, &true);
         env.storage().instance().set(&DataKey::Paused, &false);
         env.storage().instance().set(&DataKey::TotalStaked, &0_i128);
-        env.storage().instance().set(&DataKey::RewardTokens, &Vec::<Address>::new(&env));
+        env.storage()
+            .instance()
+            .set(&DataKey::RewardTokens, &Vec::<Address>::new(&env));
 
         extend_instance_ttl(&env);
 
         let events = EventBuilder::new(&env);
-        events.publish("staking", "initialized", (admin.clone(), stake_token, env.ledger().timestamp()));
+        events.publish(
+            "staking",
+            "initialized",
+            (admin.clone(), stake_token, env.ledger().timestamp()),
+        );
 
         Ok(())
     }
@@ -113,14 +118,20 @@ impl StakingPool {
         Self::require_initialized(&env)?;
         Self::require_not_paused(&env)?;
 
-        let config: StakingConfig = env.storage().instance().get(&DataKey::Config)
+        let config: StakingConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)?;
 
         if amount < config.min_stake_amount {
             return Err(SharedError::AmountBelowMin);
         }
 
-        let stake_token: Address = env.storage().instance().get(&DataKey::StakeToken)
+        let stake_token: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::StakeToken)
             .ok_or(SharedError::NotInitialized)?;
 
         // Transfer tokens to contract
@@ -146,12 +157,16 @@ impl StakingPool {
         }
 
         // Save user stake
-        env.storage().persistent().set(&DataKey::UserStake(user.clone()), &user_stake);
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserStake(user.clone()), &user_stake);
 
         // Update total staked
         let total_staked = Self::get_total_staked(&env);
         let new_total = safe_add(total_staked, amount)?;
-        env.storage().instance().set(&DataKey::TotalStaked, &new_total);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalStaked, &new_total);
 
         emit_stake(&env, &user, amount, new_total);
         extend_instance_ttl(&env);
@@ -191,15 +206,22 @@ impl StakingPool {
         }
 
         // Save user stake
-        env.storage().persistent().set(&DataKey::UserStake(user.clone()), &user_stake);
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserStake(user.clone()), &user_stake);
 
         // Update total staked
         let total_staked = Self::get_total_staked(&env);
         let new_total = safe_sub(total_staked, amount)?;
-        env.storage().instance().set(&DataKey::TotalStaked, &new_total);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalStaked, &new_total);
 
         // Transfer tokens back to user
-        let stake_token: Address = env.storage().instance().get(&DataKey::StakeToken)
+        let stake_token: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::StakeToken)
             .ok_or(SharedError::NotInitialized)?;
         let token_client = token::Client::new(&env, &stake_token);
         token_client.transfer(&env.current_contract_address(), &user, &amount);
@@ -224,10 +246,13 @@ impl StakingPool {
         // Update reward debt
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(&env, &reward_token);
-            user_stake.reward_debt = safe_div(safe_mul(user_stake.amount, acc_per_share)?, PRECISION)?;
+            user_stake.reward_debt =
+                safe_div(safe_mul(user_stake.amount, acc_per_share)?, PRECISION)?;
         }
 
-        env.storage().persistent().set(&DataKey::UserStake(user.clone()), &user_stake);
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserStake(user.clone()), &user_stake);
         extend_instance_ttl(&env);
 
         Ok(rewards)
@@ -238,17 +263,28 @@ impl StakingPool {
     // ────────────────────────────────────────────────────────────────────────
 
     /// Add rewards to the pool (called by Fee Distributor)
-    pub fn add_rewards(env: Env, caller: Address, reward_token: Address, amount: i128) -> Result<(), SharedError> {
+    pub fn add_rewards(
+        env: Env,
+        caller: Address,
+        reward_token: Address,
+        amount: i128,
+    ) -> Result<(), SharedError> {
         caller.require_auth();
         Self::require_initialized(&env)?;
 
         // Verify caller is fee distributor
-        let fee_distributor: Address = env.storage().instance().get(&DataKey::FeeDistributor)
+        let fee_distributor: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::FeeDistributor)
             .ok_or(SharedError::NotInitialized)?;
 
         if caller != fee_distributor {
             // Also allow admin
-            let admin: Address = env.storage().instance().get(&DataKey::Admin)
+            let admin: Address = env
+                .storage()
+                .instance()
+                .get(&DataKey::Admin)
                 .ok_or(SharedError::NotInitialized)?;
             if caller != admin {
                 return Err(SharedError::Unauthorized);
@@ -270,19 +306,27 @@ impl StakingPool {
             let current_acc = Self::get_acc_reward_per_share(&env, &reward_token);
             let reward_per_share = safe_div(safe_mul(amount, PRECISION)?, total_staked)?;
             let new_acc = safe_add(current_acc, reward_per_share)?;
-            env.storage().persistent().set(&DataKey::AccRewardPerShare(reward_token.clone()), &new_acc);
+            env.storage()
+                .persistent()
+                .set(&DataKey::AccRewardPerShare(reward_token.clone()), &new_acc);
         }
 
         // Update total rewards
         let total_rewards = Self::get_total_rewards(&env, &reward_token);
         let new_total = safe_add(total_rewards, amount)?;
-        env.storage().persistent().set(&DataKey::TotalRewards(reward_token.clone()), &new_total);
+        env.storage()
+            .persistent()
+            .set(&DataKey::TotalRewards(reward_token.clone()), &new_total);
 
         // Ensure reward token is tracked
         Self::add_reward_token(&env, &reward_token);
 
         let events = EventBuilder::new(&env);
-        events.publish("staking", "rewards_added", (reward_token, amount, env.ledger().timestamp()));
+        events.publish(
+            "staking",
+            "rewards_added",
+            (reward_token, amount, env.ledger().timestamp()),
+        );
 
         extend_instance_ttl(&env);
 
@@ -311,7 +355,9 @@ impl StakingPool {
     pub fn set_fee_distributor(env: Env, new_distributor: Address) -> Result<(), SharedError> {
         Self::require_admin(&env)?;
 
-        env.storage().instance().set(&DataKey::FeeDistributor, &new_distributor);
+        env.storage()
+            .instance()
+            .set(&DataKey::FeeDistributor, &new_distributor);
         extend_instance_ttl(&env);
 
         Ok(())
@@ -349,7 +395,11 @@ impl StakingPool {
     ) -> Result<(), SharedError> {
         Self::require_admin(&env)?;
 
-        let paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
         if !paused {
             return Err(SharedError::ContractNotPaused);
         }
@@ -384,7 +434,9 @@ impl StakingPool {
 
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(&env, &reward_token);
-            let pending = Self::calculate_pending(&user_stake.amount, acc_per_share, user_stake.reward_debt);
+            let pending =
+                Self::calculate_pending(&user_stake.amount, acc_per_share, user_stake.reward_debt)
+                    .unwrap_or(0); // Safe: overflow means 0 pending
             if pending > 0 {
                 rewards.push_back((reward_token, pending));
             }
@@ -400,13 +452,17 @@ impl StakingPool {
 
     /// Get staking configuration
     pub fn get_config(env: Env) -> Result<StakingConfig, SharedError> {
-        env.storage().instance().get(&DataKey::Config)
+        env.storage()
+            .instance()
+            .get(&DataKey::Config)
             .ok_or(SharedError::NotInitialized)
     }
 
     /// Get stake token address
     pub fn stake_token(env: Env) -> Result<Address, SharedError> {
-        env.storage().instance().get(&DataKey::StakeToken)
+        env.storage()
+            .instance()
+            .get(&DataKey::StakeToken)
             .ok_or(SharedError::NotInitialized)
     }
 
@@ -417,13 +473,18 @@ impl StakingPool {
 
     /// Get admin address
     pub fn admin(env: Env) -> Result<Address, SharedError> {
-        env.storage().instance().get(&DataKey::Admin)
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)
     }
 
     /// Check if contract is paused
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
     }
 
     /// Get APR estimate (based on recent rewards)
@@ -445,7 +506,9 @@ impl StakingPool {
     // ────────────────────────────────────────────────────────────────────────
 
     fn require_initialized(env: &Env) -> Result<(), SharedError> {
-        let initialized: bool = env.storage().instance()
+        let initialized: bool = env
+            .storage()
+            .instance()
             .get(&DataKey::Initialized)
             .unwrap_or(false);
 
@@ -456,7 +519,9 @@ impl StakingPool {
     }
 
     fn require_not_paused(env: &Env) -> Result<(), SharedError> {
-        let paused: bool = env.storage().instance()
+        let paused: bool = env
+            .storage()
+            .instance()
             .get(&DataKey::Paused)
             .unwrap_or(false);
 
@@ -467,7 +532,9 @@ impl StakingPool {
     }
 
     fn require_admin(env: &Env) -> Result<(), SharedError> {
-        let admin: Address = env.storage().instance()
+        let admin: Address = env
+            .storage()
+            .instance()
             .get(&DataKey::Admin)
             .ok_or(SharedError::NotInitialized)?;
 
@@ -476,31 +543,36 @@ impl StakingPool {
     }
 
     fn get_user_stake(env: &Env, user: &Address) -> UserStake {
-        env.storage().persistent()
+        env.storage()
+            .persistent()
             .get(&DataKey::UserStake(user.clone()))
             .unwrap_or(UserStake::new(0, env.ledger().timestamp()))
     }
 
     fn get_total_staked(env: &Env) -> i128 {
-        env.storage().instance()
+        env.storage()
+            .instance()
             .get(&DataKey::TotalStaked)
             .unwrap_or(0)
     }
 
     fn get_acc_reward_per_share(env: &Env, reward_token: &Address) -> i128 {
-        env.storage().persistent()
+        env.storage()
+            .persistent()
             .get(&DataKey::AccRewardPerShare(reward_token.clone()))
             .unwrap_or(0)
     }
 
     fn get_total_rewards(env: &Env, reward_token: &Address) -> i128 {
-        env.storage().persistent()
+        env.storage()
+            .persistent()
             .get(&DataKey::TotalRewards(reward_token.clone()))
             .unwrap_or(0)
     }
 
     fn get_reward_tokens(env: &Env) -> Vec<Address> {
-        env.storage().instance()
+        env.storage()
+            .instance()
             .get(&DataKey::RewardTokens)
             .unwrap_or(Vec::new(env))
     }
@@ -516,14 +588,22 @@ impl StakingPool {
         }
 
         tokens.push_back(token.clone());
-        env.storage().instance().set(&DataKey::RewardTokens, &tokens);
+        env.storage()
+            .instance()
+            .set(&DataKey::RewardTokens, &tokens);
     }
 
-    fn calculate_pending(stake_amount: &i128, acc_per_share: i128, reward_debt: i128) -> i128 {
-        let accumulated = safe_div(safe_mul(*stake_amount, acc_per_share).unwrap_or(0), PRECISION).unwrap_or(0);
-        safe_sub(accumulated, reward_debt).unwrap_or(0)
+    /// Calculate pending rewards with proper error handling (C2 fix)
+    fn calculate_pending(
+        stake_amount: &i128,
+        acc_per_share: i128,
+        reward_debt: i128,
+    ) -> Result<i128, SharedError> {
+        let accumulated = safe_div(safe_mul(*stake_amount, acc_per_share)?, PRECISION)?;
+        safe_sub(accumulated, reward_debt)
     }
 
+    /// Internal harvest with checks-effects-interactions pattern (C1 fix - reentrancy protection)
     fn internal_harvest(
         env: &Env,
         user: &Address,
@@ -536,21 +616,30 @@ impl StakingPool {
             return Ok(rewards);
         }
 
+        // CHECKS: Calculate all pending rewards first
+        let mut pending_transfers: Vec<(Address, i128)> = Vec::new(env);
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(env, &reward_token);
-            let pending = Self::calculate_pending(&user_stake.amount, acc_per_share, user_stake.reward_debt);
+            let pending =
+                Self::calculate_pending(&user_stake.amount, acc_per_share, user_stake.reward_debt)
+                    .unwrap_or(0); // Safe: overflow means 0 pending
 
             if pending > 0 {
-                // Transfer rewards to user
-                let token_client = token::Client::new(env, &reward_token);
-                token_client.transfer(&env.current_contract_address(), user, &pending);
-
-                emit_claim(env, user, &reward_token, pending);
-                rewards.push_back((reward_token, pending));
+                pending_transfers.push_back((reward_token.clone(), pending));
             }
         }
 
+        // EFFECTS: Update state BEFORE external calls (reentrancy protection)
         user_stake.last_claim_time = env.ledger().timestamp();
+
+        // INTERACTIONS: Now perform external token transfers
+        for (reward_token, pending) in pending_transfers.iter() {
+            let token_client = token::Client::new(env, &reward_token);
+            token_client.transfer(&env.current_contract_address(), user, &pending);
+
+            emit_claim(env, user, &reward_token, pending);
+            rewards.push_back((reward_token, pending));
+        }
 
         Ok(rewards)
     }
@@ -565,7 +654,10 @@ mod tests {
     use super::*;
     use soroban_sdk::testutils::Address as _;
 
-    fn create_token<'a>(env: &Env, admin: &Address) -> (token::Client<'a>, token::StellarAssetClient<'a>) {
+    fn create_token<'a>(
+        env: &Env,
+        admin: &Address,
+    ) -> (token::Client<'a>, token::StellarAssetClient<'a>) {
         let contract_id = env.register_stellar_asset_contract_v2(admin.clone());
         (
             token::Client::new(env, &contract_id.address()),
@@ -617,7 +709,12 @@ mod tests {
         let (stake_token, stake_admin) = create_token(&env, &admin);
         stake_admin.mint(&user, &1_000_000_000_000); // 100,000 tokens
 
-        client.initialize(&admin, &stake_token.address, &fee_distributor, &default_config());
+        client.initialize(
+            &admin,
+            &stake_token.address,
+            &fee_distributor,
+            &default_config(),
+        );
 
         // Stake
         let stake_amount = 100_000_000_000_i128; // 10,000 tokens
@@ -655,7 +752,12 @@ mod tests {
         stake_admin.mint(&user, &1_000_000_000_000);
         reward_admin.mint(&fee_distributor, &1_000_000_000_000);
 
-        client.initialize(&admin, &stake_token.address, &fee_distributor, &default_config());
+        client.initialize(
+            &admin,
+            &stake_token.address,
+            &fee_distributor,
+            &default_config(),
+        );
 
         // User stakes
         client.stake(&user, &100_000_000_000);
@@ -697,7 +799,12 @@ mod tests {
         stake_admin.mint(&user2, &1_000_000_000_000);
         reward_admin.mint(&fee_distributor, &1_000_000_000_000);
 
-        client.initialize(&admin, &stake_token.address, &fee_distributor, &default_config());
+        client.initialize(
+            &admin,
+            &stake_token.address,
+            &fee_distributor,
+            &default_config(),
+        );
 
         // User1 stakes 75%, User2 stakes 25%
         client.stake(&user1, &75_000_000_000);

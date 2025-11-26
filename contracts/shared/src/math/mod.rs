@@ -134,10 +134,7 @@ pub fn get_amount_out(
     let numerator = safe_mul(reserve_out, amount_in_with_fee)?;
 
     // denominator = reserve_in * BPS_DENOMINATOR + amount_in_with_fee
-    let denominator = safe_add(
-        safe_mul(reserve_in, BPS_DENOMINATOR)?,
-        amount_in_with_fee,
-    )?;
+    let denominator = safe_add(safe_mul(reserve_in, BPS_DENOMINATOR)?, amount_in_with_fee)?;
 
     safe_div(numerator, denominator)
 }
@@ -162,16 +159,10 @@ pub fn get_amount_in(
     let fee_factor = BPS_DENOMINATOR - (fee_bps as i128);
 
     // numerator = reserve_in * amount_out * BPS_DENOMINATOR
-    let numerator = safe_mul(
-        safe_mul(reserve_in, amount_out)?,
-        BPS_DENOMINATOR,
-    )?;
+    let numerator = safe_mul(safe_mul(reserve_in, amount_out)?, BPS_DENOMINATOR)?;
 
     // denominator = (reserve_out - amount_out) * fee_factor
-    let denominator = safe_mul(
-        safe_sub(reserve_out, amount_out)?,
-        fee_factor,
-    )?;
+    let denominator = safe_mul(safe_sub(reserve_out, amount_out)?, fee_factor)?;
 
     // Round up: (numerator + denominator - 1) / denominator
     safe_div(safe_add(numerator, safe_sub(denominator, 1)?)?, denominator)
@@ -217,13 +208,21 @@ pub fn sqrt(value: i128) -> i128 {
 /// Return minimum of two values
 #[inline]
 pub fn min(a: i128, b: i128) -> i128 {
-    if a < b { a } else { b }
+    if a < b {
+        a
+    } else {
+        b
+    }
 }
 
 /// Return maximum of two values
 #[inline]
 pub fn max(a: i128, b: i128) -> i128 {
-    if a > b { a } else { b }
+    if a > b {
+        a
+    } else {
+        b
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
