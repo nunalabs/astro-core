@@ -20,9 +20,16 @@
 
 use astro_core_shared::{
     events::{emit_admin_changed, emit_deposit, emit_paused, emit_withdraw, EventBuilder},
-    types::{extend_instance_ttl, SharedError},
+    types::{extend_instance_ttl, RateLimitConfig, SharedError, TreasuryConfig, WithdrawalTracker},
 };
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Vec};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Constants
+// ════════════════════════════════════════════════════════════════════════════
+
+/// Seconds in a day for rate limit reset
+const SECONDS_PER_DAY: u64 = 86400;
 
 // ════════════════════════════════════════════════════════════════════════════
 // Storage Keys
@@ -43,6 +50,10 @@ pub enum DataKey {
     FeeDistributor,
     /// Allowed spenders (addresses that can withdraw on behalf of treasury)
     AllowedSpenders,
+    /// Treasury configuration (rate limits, token limits, etc.)
+    Config,
+    /// Withdrawal tracker per token (Address -> WithdrawalTracker)
+    WithdrawalTracker(Address),
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -78,6 +89,21 @@ impl TreasuryVault {
         env.storage()
             .instance()
             .set(&DataKey::AllowedSpenders, &empty_list);
+
+        // Initialize default config with limits
+        let default_config = TreasuryConfig {
+            rate_limit: RateLimitConfig {
+                max_per_tx: 0,
+                daily_limit: 0,
+                cooldown_seconds: 0,
+                enabled: false,
+            },
+            max_tokens: TreasuryConfig::DEFAULT_MAX_TOKENS,
+            max_spenders: TreasuryConfig::DEFAULT_MAX_SPENDERS,
+        };
+        env.storage()
+            .instance()
+            .set(&DataKey::Config, &default_config);
 
         // Initialize state
         env.storage().instance().set(&DataKey::Initialized, &true);
@@ -181,6 +207,9 @@ impl TreasuryVault {
             return Err(SharedError::InvalidAmount);
         }
 
+        // Check rate limits
+        Self::check_and_update_rate_limit(&env, &token, amount)?;
+
         // Check balance
         let balance = Self::get_balance(&env, &token);
         if balance < amount {
@@ -214,6 +243,9 @@ impl TreasuryVault {
             return Err(SharedError::InsufficientBalance);
         }
 
+        // Check rate limits (withdraw_all respects limits)
+        Self::check_and_update_rate_limit(&env, &token, balance)?;
+
         // Transfer all
         let token_client = token::Client::new(&env, &token);
         token_client.transfer(&env.current_contract_address(), &to, &balance);
@@ -244,6 +276,9 @@ impl TreasuryVault {
         if amount <= 0 {
             return Err(SharedError::InvalidAmount);
         }
+
+        // Check rate limits for spender withdrawals too
+        Self::check_and_update_rate_limit(&env, &token, amount)?;
 
         let balance = Self::get_balance(&env, &token);
         if balance < amount {
@@ -323,6 +358,12 @@ impl TreasuryVault {
             }
         }
 
+        // Check max spenders limit
+        let config = Self::get_config_internal(&env);
+        if spenders.len() >= config.max_spenders {
+            return Err(SharedError::LimitExceeded);
+        }
+
         spenders.push_back(spender.clone());
         env.storage()
             .instance()
@@ -393,6 +434,30 @@ impl TreasuryVault {
         Ok(())
     }
 
+    /// Update treasury configuration (rate limits, max tokens/spenders)
+    pub fn update_config(env: Env, new_config: TreasuryConfig) -> Result<(), SharedError> {
+        Self::require_initialized(&env)?;
+        Self::require_admin(&env)?;
+
+        env.storage().instance().set(&DataKey::Config, &new_config);
+
+        let events = EventBuilder::new(&env);
+        events.publish(
+            "treasury",
+            "config_updated",
+            (
+                new_config.rate_limit.enabled,
+                new_config.rate_limit.daily_limit,
+                new_config.max_tokens,
+                env.ledger().timestamp(),
+            ),
+        );
+
+        extend_instance_ttl(&env);
+
+        Ok(())
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // View Functions
     // ────────────────────────────────────────────────────────────────────────
@@ -443,6 +508,11 @@ impl TreasuryVault {
     /// Get fee distributor address
     pub fn fee_distributor(env: Env) -> Option<Address> {
         env.storage().instance().get(&DataKey::FeeDistributor)
+    }
+
+    /// Get treasury configuration
+    pub fn get_config(env: Env) -> TreasuryConfig {
+        Self::get_config_internal(&env)
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -527,8 +597,95 @@ impl TreasuryVault {
             }
         }
 
+        // Check max tokens limit (silently ignore if limit reached - don't fail deposits)
+        let config = Self::get_config_internal(env);
+        if tokens.len() >= config.max_tokens {
+            // Log warning but don't fail - token still works, just not tracked
+            return;
+        }
+
         tokens.push_back(token.clone());
         env.storage().instance().set(&DataKey::TokenList, &tokens);
+    }
+
+    /// Get treasury configuration
+    fn get_config_internal(env: &Env) -> TreasuryConfig {
+        env.storage()
+            .instance()
+            .get(&DataKey::Config)
+            .unwrap_or(TreasuryConfig {
+                rate_limit: RateLimitConfig {
+                    max_per_tx: 0,
+                    daily_limit: 0,
+                    cooldown_seconds: 0,
+                    enabled: false,
+                },
+                max_tokens: TreasuryConfig::DEFAULT_MAX_TOKENS,
+                max_spenders: TreasuryConfig::DEFAULT_MAX_SPENDERS,
+            })
+    }
+
+    /// Check and update rate limits for withdrawals
+    fn check_and_update_rate_limit(
+        env: &Env,
+        token: &Address,
+        amount: i128,
+    ) -> Result<(), SharedError> {
+        let config = Self::get_config_internal(env);
+
+        // Skip if rate limiting is disabled
+        if !config.rate_limit.enabled {
+            return Ok(());
+        }
+
+        let current_time = env.ledger().timestamp();
+
+        // Check per-transaction limit
+        if config.rate_limit.max_per_tx > 0 && amount > config.rate_limit.max_per_tx {
+            return Err(SharedError::TransactionLimitExceeded);
+        }
+
+        // Get or create withdrawal tracker
+        let mut tracker: WithdrawalTracker = env
+            .storage()
+            .persistent()
+            .get(&DataKey::WithdrawalTracker(token.clone()))
+            .unwrap_or(WithdrawalTracker {
+                amount_withdrawn: 0,
+                period_start: current_time,
+                last_withdrawal: 0,
+            });
+
+        // Reset daily limit if new day
+        if current_time >= tracker.period_start + SECONDS_PER_DAY {
+            tracker.amount_withdrawn = 0;
+            tracker.period_start = current_time;
+        }
+
+        // Check cooldown
+        if config.rate_limit.cooldown_seconds > 0 {
+            let time_since_last = current_time.saturating_sub(tracker.last_withdrawal);
+            if time_since_last < config.rate_limit.cooldown_seconds && tracker.last_withdrawal > 0 {
+                return Err(SharedError::CooldownNotElapsed);
+            }
+        }
+
+        // Check daily limit
+        if config.rate_limit.daily_limit > 0 {
+            let new_total = tracker.amount_withdrawn + amount;
+            if new_total > config.rate_limit.daily_limit {
+                return Err(SharedError::DailyLimitExceeded);
+            }
+            tracker.amount_withdrawn = new_total;
+        }
+
+        // Update tracker
+        tracker.last_withdrawal = current_time;
+        env.storage()
+            .persistent()
+            .set(&DataKey::WithdrawalTracker(token.clone()), &tracker);
+
+        Ok(())
     }
 }
 

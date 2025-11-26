@@ -95,4 +95,18 @@ pub enum SharedError {
     CrossContractCallFailed = 600,
     /// External contract not configured
     ExternalContractNotSet = 601,
+
+    // ════════════════════════════════════════════════════════════════
+    // Rate Limit Errors (700-799)
+    // ════════════════════════════════════════════════════════════════
+    /// Daily withdrawal limit exceeded
+    DailyLimitExceeded = 700,
+    /// Per-transaction limit exceeded
+    TransactionLimitExceeded = 701,
+    /// Rate limit cooldown not elapsed
+    CooldownNotElapsed = 702,
+    /// Maximum number of items exceeded
+    LimitExceeded = 703,
+    /// Unlock buffer time not elapsed
+    UnlockBufferNotElapsed = 704,
 }

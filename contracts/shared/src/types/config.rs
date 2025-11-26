@@ -90,6 +90,8 @@ pub struct LockConfig {
     pub early_unlock_enabled: bool,
     /// Early unlock penalty in basis points
     pub early_unlock_penalty_bps: u32,
+    /// Buffer time after unlock_time before unlock can execute (security measure)
+    pub unlock_buffer: u64,
 }
 
 impl LockConfig {
@@ -97,4 +99,61 @@ impl LockConfig {
     pub const DEFAULT_MIN_LOCK: u64 = 7 * 24 * 60 * 60;
     /// Default maximum lock: 4 years
     pub const DEFAULT_MAX_LOCK: u64 = 4 * 365 * 24 * 60 * 60;
+    /// Default unlock buffer: 30 minutes
+    pub const DEFAULT_UNLOCK_BUFFER: u64 = 30 * 60;
+}
+
+/// Treasury rate limit configuration
+#[contracttype]
+#[derive(Clone, Debug, Default)]
+pub struct RateLimitConfig {
+    /// Maximum withdrawal per transaction (0 = unlimited)
+    pub max_per_tx: i128,
+    /// Daily withdrawal limit per token (0 = unlimited)
+    pub daily_limit: i128,
+    /// Cooldown period between withdrawals in seconds (0 = no cooldown)
+    pub cooldown_seconds: u64,
+    /// Whether rate limiting is enabled
+    pub enabled: bool,
+}
+
+/// Treasury configuration with limits
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct TreasuryConfig {
+    /// Rate limiting configuration
+    pub rate_limit: RateLimitConfig,
+    /// Maximum number of tokens that can be tracked
+    pub max_tokens: u32,
+    /// Maximum number of allowed spenders
+    pub max_spenders: u32,
+}
+
+impl TreasuryConfig {
+    /// Default maximum tracked tokens
+    pub const DEFAULT_MAX_TOKENS: u32 = 100;
+    /// Default maximum spenders
+    pub const DEFAULT_MAX_SPENDERS: u32 = 50;
+}
+
+impl Default for TreasuryConfig {
+    fn default() -> Self {
+        Self {
+            rate_limit: RateLimitConfig::default(),
+            max_tokens: Self::DEFAULT_MAX_TOKENS,
+            max_spenders: Self::DEFAULT_MAX_SPENDERS,
+        }
+    }
+}
+
+/// Withdrawal tracking for rate limiting
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct WithdrawalTracker {
+    /// Amount withdrawn in current period
+    pub amount_withdrawn: i128,
+    /// Period start timestamp (daily reset)
+    pub period_start: u64,
+    /// Last withdrawal timestamp
+    pub last_withdrawal: u64,
 }

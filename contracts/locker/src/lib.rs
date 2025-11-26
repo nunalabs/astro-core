@@ -290,6 +290,20 @@ impl LiquidityLocker {
             return Err(SharedError::DeadlineExpired);
         }
 
+        // Check unlock buffer (H2 security measure - prevents front-running)
+        let config: LockConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
+            .ok_or(SharedError::NotInitialized)?;
+
+        if config.unlock_buffer > 0 {
+            let unlock_with_buffer = lock_info.unlock_time.saturating_add(config.unlock_buffer);
+            if current_time < unlock_with_buffer {
+                return Err(SharedError::UnlockBufferNotElapsed);
+            }
+        }
+
         // Mark as unlocked
         lock_info.unlocked = true;
         env.storage()
@@ -750,6 +764,7 @@ mod tests {
             max_lock_duration: 31536000, // 1 year
             early_unlock_enabled: true,
             early_unlock_penalty_bps: 2500, // 25%
+            unlock_buffer: 0,               // No buffer for tests
         }
     }
 

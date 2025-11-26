@@ -122,6 +122,82 @@
                         "key": {
                           "vec": [
                             {
+                              "symbol": "Config"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "map": [
+                            {
+                              "key": {
+                                "symbol": "max_spenders"
+                              },
+                              "val": {
+                                "u32": 50
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "max_tokens"
+                              },
+                              "val": {
+                                "u32": 100
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "rate_limit"
+                              },
+                              "val": {
+                                "map": [
+                                  {
+                                    "key": {
+                                      "symbol": "cooldown_seconds"
+                                    },
+                                    "val": {
+                                      "u64": 0
+                                    }
+                                  },
+                                  {
+                                    "key": {
+                                      "symbol": "daily_limit"
+                                    },
+                                    "val": {
+                                      "i128": {
+                                        "hi": 0,
+                                        "lo": 0
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "key": {
+                                      "symbol": "enabled"
+                                    },
+                                    "val": {
+                                      "bool": false
+                                    }
+                                  },
+                                  {
+                                    "key": {
+                                      "symbol": "max_per_tx"
+                                    },
+                                    "val": {
+                                      "i128": {
+                                        "hi": 0,
+                                        "lo": 0
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
                               "symbol": "Initialized"
                             }
                           ]
