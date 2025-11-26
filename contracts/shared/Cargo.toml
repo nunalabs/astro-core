@@ -1,0 +1,20 @@
+[package]
+name = "astro-core-shared"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Shared types, interfaces, and utilities for Astro ecosystem contracts"
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []
+testutils = ["soroban-sdk/testutils"]
+
+[dependencies]
+soroban-sdk.workspace = true
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
