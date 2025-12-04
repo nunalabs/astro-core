@@ -17,7 +17,7 @@ license = "MIT"
 repository = "https://github.com/AstroFinance/astro-core"
 
 [workspace.dependencies]
-soroban-sdk = "22.0.0"
+soroban-sdk = "23.2.1"
 
 [profile.release]
 opt-level = "z"
