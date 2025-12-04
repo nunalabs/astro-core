@@ -8,7 +8,7 @@ Astro Core provides shared Rust/Soroban libraries used by:
 - **astro-launchpad**: Token factory, bonding curves, AMM
 - **astro-swap**: DEX factory, pair pools, router
 
-**Current Version**: Check latest git tag (e.g., `v1.1.0`)
+**Current Version**: Check latest git tag (e.g., `v1.2.0`)
 
 ## Repository Structure
 
@@ -115,7 +115,7 @@ cargo clippy --workspace
 
 ```toml
 [dependencies]
-astro-core-shared = { git = "https://github.com/nunalabs/astro-core", tag = "v1.1.0" }
+astro-core-shared = { git = "https://github.com/nunalabs/astro-core", tag = "v1.2.0" }
 ```
 
 ### Import
@@ -147,7 +147,7 @@ use astro_core_shared::{
 |---------|---------|
 | v1.0.0 | Initial release |
 | v1.0.2 | Production stability |
-| v1.1.0 | Added `apply_bps_round_up`, `MIN_TRADE_AMOUNT` |
+| v1.2.0 | Added `apply_bps_round_up`, `MIN_TRADE_AMOUNT` |
 
 ## Error Types
 
