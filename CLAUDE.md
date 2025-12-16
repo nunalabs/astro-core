@@ -1,5 +1,8 @@
 # CLAUDE.md - Astro Core
 
+> ## Mantra
+> **Código profesional, escalable, mantenible, robusto y fluido - top mundial para interacción con usuarios reales, siempre con tecnología de calidad e implementaciones avanzadas.**
+
 > **Astro Core is the SINGLE SOURCE OF TRUTH for shared code across the Astro ecosystem.**
 
 ## Overview
@@ -157,6 +160,29 @@ use astro_core_shared::{
 - `DivisionByZero` - Division by zero
 - `InvalidAmount` - Invalid input (negative, etc.)
 - `InsufficientBalance` - Not enough funds
+
+## Claude Code Agents
+
+### Local Agents (astro-core/.claude/agents/)
+
+| Agent | Model | Purpose |
+|-------|-------|---------|
+| `core-math-validator` | opus | Critical shared math validation |
+| `shared-api-reviewer` | sonnet | API surface review |
+
+### Inherited Agents (Root .claude/agents/)
+
+| Agent | Model | Purpose |
+|-------|-------|---------|
+| `security-auditor` | sonnet | Security vulnerabilities |
+| `test-generator` | sonnet | Unit/integration tests |
+| `continuous-improver` | sonnet | Auto-documentation |
+
+### Local Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `safe-arithmetic` | Safe math patterns, overflow protection |
 
 ## Contributing
 
