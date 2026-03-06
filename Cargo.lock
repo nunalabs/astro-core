@@ -152,14 +152,14 @@ dependencies = [
 
 [[package]]
 name = "astro-core-shared"
-version = "1.0.0"
+version = "1.3.0"
 dependencies = [
  "soroban-sdk",
 ]
 
 [[package]]
 name = "astro-fee-distributor"
-version = "1.0.0"
+version = "1.3.0"
 dependencies = [
  "astro-core-shared",
  "soroban-sdk",
@@ -167,7 +167,7 @@ dependencies = [
 
 [[package]]
 name = "astro-locker"
-version = "1.0.0"
+version = "1.3.0"
 dependencies = [
  "astro-core-shared",
  "soroban-sdk",
@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "astro-staking"
-version = "1.0.0"
+version = "1.3.0"
 dependencies = [
  "astro-core-shared",
  "soroban-sdk",
@@ -183,7 +183,7 @@ dependencies = [
 
 [[package]]
 name = "astro-treasury"
-version = "1.0.0"
+version = "1.3.0"
 dependencies = [
  "astro-core-shared",
  "soroban-sdk",

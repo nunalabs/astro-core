@@ -65,6 +65,10 @@ pub enum SharedError {
     AlreadyExecuted = 303,
     /// Deadline expired
     DeadlineExpired = 304,
+    /// Reentrancy detected - operation already in progress
+    Reentrancy = 305,
+    /// Circuit breaker triggered - emergency pause
+    CircuitBreakerTriggered = 306,
 
     // ════════════════════════════════════════════════════════════════
     // Token Errors (400-499)
