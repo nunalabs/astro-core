@@ -151,9 +151,11 @@ impl StakingPool {
         user_stake.stake_time = env.ledger().timestamp();
 
         // Update reward debts for all reward tokens
+        // FIX #H1: Use set_reward_debt() to properly track per-token debt
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(&env, &reward_token);
-            user_stake.reward_debt = safe_div(safe_mul(new_amount, acc_per_share)?, PRECISION)?;
+            let new_debt = safe_div(safe_mul(new_amount, acc_per_share)?, PRECISION)?;
+            user_stake.set_reward_debt(&reward_token, new_debt);
         }
 
         // Save user stake
@@ -200,9 +202,11 @@ impl StakingPool {
         user_stake.amount = remaining;
 
         // Update reward debts
+        // FIX #H1: Use set_reward_debt() to properly track per-token debt
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(&env, &reward_token);
-            user_stake.reward_debt = safe_div(safe_mul(remaining, acc_per_share)?, PRECISION)?;
+            let new_debt = safe_div(safe_mul(remaining, acc_per_share)?, PRECISION)?;
+            user_stake.set_reward_debt(&reward_token, new_debt);
         }
 
         // Save user stake
@@ -244,10 +248,11 @@ impl StakingPool {
         let rewards = Self::internal_harvest(&env, &user, &mut user_stake, &reward_tokens)?;
 
         // Update reward debt
+        // FIX #H1: Use set_reward_debt() to properly track per-token debt
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(&env, &reward_token);
-            user_stake.reward_debt =
-                safe_div(safe_mul(user_stake.amount, acc_per_share)?, PRECISION)?;
+            let new_debt = safe_div(safe_mul(user_stake.amount, acc_per_share)?, PRECISION)?;
+            user_stake.set_reward_debt(&reward_token, new_debt);
         }
 
         env.storage()
@@ -434,8 +439,10 @@ impl StakingPool {
 
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(&env, &reward_token);
+            // FIX #H1: Use get_reward_debt() to read per-token debt
+            let reward_debt = user_stake.get_reward_debt(&reward_token);
             let pending =
-                Self::calculate_pending(&user_stake.amount, acc_per_share, user_stake.reward_debt)
+                Self::calculate_pending(&user_stake.amount, acc_per_share, reward_debt)
                     .unwrap_or(0); // Safe: overflow means 0 pending
             if pending > 0 {
                 rewards.push_back((reward_token, pending));
@@ -546,7 +553,17 @@ impl StakingPool {
         env.storage()
             .persistent()
             .get(&DataKey::UserStake(user.clone()))
-            .unwrap_or(UserStake::new(0, env.ledger().timestamp()))
+            .unwrap_or_else(|| {
+                // Create new UserStake with empty reward_debts Map
+                // FIX #H1: Initialize Map properly for multi-token reward tracking
+                use soroban_sdk::Map;
+                UserStake {
+                    amount: 0,
+                    stake_time: env.ledger().timestamp(),
+                    last_claim_time: env.ledger().timestamp(),
+                    reward_debts: Map::new(env),
+                }
+            })
     }
 
     fn get_total_staked(env: &Env) -> i128 {
@@ -620,8 +637,10 @@ impl StakingPool {
         let mut pending_transfers: Vec<(Address, i128)> = Vec::new(env);
         for reward_token in reward_tokens.iter() {
             let acc_per_share = Self::get_acc_reward_per_share(env, &reward_token);
+            // FIX #H1: Use get_reward_debt() to read per-token debt
+            let reward_debt = user_stake.get_reward_debt(&reward_token);
             let pending =
-                Self::calculate_pending(&user_stake.amount, acc_per_share, user_stake.reward_debt)
+                Self::calculate_pending(&user_stake.amount, acc_per_share, reward_debt)
                     .unwrap_or(0); // Safe: overflow means 0 pending
 
             if pending > 0 {

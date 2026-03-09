@@ -384,10 +384,19 @@
                   },
                   {
                     "key": {
-                      "symbol": "reward_debt"
+                      "symbol": "reward_debts"
                     },
                     "val": {
-                      "i128": "10000000000"
+                      "map": [
+                        {
+                          "key": {
+                            "address": "CACMVW2KK4H5FZDFF2AUCAKQTEJMZZWJUIZF23XMRVYQBSXYLHZ6BKWN"
+                          },
+                          "val": {
+                            "i128": "10000000000"
+                          }
+                        }
+                      ]
                     }
                   },
                   {

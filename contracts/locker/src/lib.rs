@@ -167,6 +167,9 @@ impl LiquidityLocker {
             .persistent()
             .set(&DataKey::Lock(lock_id), &lock_info);
 
+        // Extend TTL for long-term locks (VULN #H2 fix)
+        Self::extend_lock_ttl(&env, lock_id, &lock_info);
+
         // Update user's lock list
         Self::add_lock_to_user(&env, &owner, lock_id);
 
@@ -231,6 +234,9 @@ impl LiquidityLocker {
         env.storage()
             .persistent()
             .set(&DataKey::Lock(lock_id), &lock_info);
+
+        // Extend TTL for permanent lock (VULN #H2 fix - critical for u64::MAX)
+        Self::extend_lock_ttl(&env, lock_id, &lock_info);
 
         Self::add_lock_to_user(&env, &owner, lock_id);
         Self::add_lock_to_token(&env, &lp_token, lock_id);
@@ -465,6 +471,9 @@ impl LiquidityLocker {
             .persistent()
             .set(&DataKey::Lock(lock_id), &lock_info);
 
+        // Re-extend TTL with new unlock time (VULN #H2 fix)
+        Self::extend_lock_ttl(&env, lock_id, &lock_info);
+
         let events = EventBuilder::new(&env);
         events.publish("locker", "lock_extended", (lock_id, new_unlock_time));
 
@@ -502,6 +511,9 @@ impl LiquidityLocker {
         env.storage()
             .persistent()
             .set(&DataKey::Lock(lock_id), &lock_info);
+
+        // Re-extend TTL on transfer (VULN #H2 fix)
+        Self::extend_lock_ttl(&env, lock_id, &lock_info);
 
         // Update user lock lists
         Self::remove_lock_from_user(&env, &owner, lock_id);
@@ -686,6 +698,62 @@ impl LiquidityLocker {
 
         admin.require_auth();
         Ok(())
+    }
+
+    /// Extend TTL for a lock based on its duration
+    /// For permanent locks (u64::MAX), use maximum TTL and re-extend periodically
+    /// Fixes VULN #H2: Prevents permanent loss of funds in long-term locks
+    fn extend_lock_ttl(env: &Env, lock_id: u64, lock_info: &LockInfo) {
+        const LEDGERS_IN_YEAR: u32 = 6_307_200; // ~365 days * 24h * 60m * 60s / 5s per ledger
+
+        let current_time = env.ledger().timestamp();
+
+        // Calculate ledgers until unlock (Stellar: ~5 seconds per ledger)
+        let ledgers_to_unlock: u64 = if lock_info.unlock_time == u64::MAX {
+            // Permanent lock: use maximum TTL (12 months worth)
+            LEDGERS_IN_YEAR as u64
+        } else {
+            let seconds_to_unlock = lock_info.unlock_time.saturating_sub(current_time);
+            let ledgers = seconds_to_unlock / 5; // ~5 sec per ledger
+
+            // Add buffer of 30 days
+            let buffer = 30 * 24 * 60 * 60 / 5; // 30 days in ledgers
+            ledgers + buffer
+        };
+
+        // Soroban max TTL: ~12 months (6,307,200 ledgers)
+        let max_ttl = 6_307_200_u32;
+        let ttl_to_set = if ledgers_to_unlock > max_ttl as u64 {
+            max_ttl
+        } else {
+            ledgers_to_unlock as u32
+        };
+
+        // Extend with ttl_to_set as both threshold and extend_to
+        env.storage().persistent().extend_ttl(
+            &DataKey::Lock(lock_id),
+            ttl_to_set,
+            ttl_to_set,
+        );
+
+        // Also extend UserLocks and TokenLocks if they exist
+        let user_locks_key = DataKey::UserLocks(lock_info.owner.clone());
+        if env.storage().persistent().has(&user_locks_key) {
+            env.storage().persistent().extend_ttl(
+                &user_locks_key,
+                ttl_to_set,
+                ttl_to_set,
+            );
+        }
+
+        let token_locks_key = DataKey::TokenLocks(lock_info.lp_token.clone());
+        if env.storage().persistent().has(&token_locks_key) {
+            env.storage().persistent().extend_ttl(
+                &token_locks_key,
+                ttl_to_set,
+                ttl_to_set,
+            );
+        }
     }
 
     fn get_total_locked(env: &Env, lp_token: &Address) -> i128 {

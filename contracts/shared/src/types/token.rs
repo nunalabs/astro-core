@@ -2,7 +2,7 @@
 //!
 //! Types related to tokens in the Astro ecosystem.
 
-use soroban_sdk::{contracttype, Address, String};
+use soroban_sdk::{contracttype, Address, Map, String};
 
 /// Token metadata shared between projects
 #[contracttype]
@@ -88,17 +88,28 @@ pub struct UserStake {
     /// Last claim timestamp
     pub last_claim_time: u64,
     /// Accumulated reward debt per token (for reward calculation)
-    pub reward_debt: i128,
+    /// CHANGED from i128 to Map<Address, i128> to fix VULN #H1
+    /// Key: reward token address, Value: reward debt for that token
+    pub reward_debts: Map<Address, i128>,
 }
 
 impl UserStake {
-    pub fn new(amount: i128, timestamp: u64) -> Self {
-        Self {
-            amount,
-            stake_time: timestamp,
-            last_claim_time: timestamp,
-            reward_debt: 0,
-        }
+    /// Create new UserStake with empty reward_debts Map
+    /// BREAKING CHANGE: reward_debt (i128) -> reward_debts (Map)
+    pub fn new_empty() -> Self {
+        // Note: Map will be initialized when first used via get_reward_debt/set_reward_debt
+        // Can't create Map here without Env reference
+        panic!("Use get_user_stake() which creates Map properly")
+    }
+
+    /// Get reward debt for a specific token (returns 0 if not set)
+    pub fn get_reward_debt(&self, token: &Address) -> i128 {
+        self.reward_debts.get(token.clone()).unwrap_or(0)
+    }
+
+    /// Set reward debt for a specific token
+    pub fn set_reward_debt(&mut self, token: &Address, debt: i128) {
+        self.reward_debts.set(token.clone(), debt);
     }
 }
 

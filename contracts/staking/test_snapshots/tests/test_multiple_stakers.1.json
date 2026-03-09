@@ -430,10 +430,10 @@
                   },
                   {
                     "key": {
-                      "symbol": "reward_debt"
+                      "symbol": "reward_debts"
                     },
                     "val": {
-                      "i128": "0"
+                      "map": []
                     }
                   },
                   {
@@ -490,10 +490,10 @@
                   },
                   {
                     "key": {
-                      "symbol": "reward_debt"
+                      "symbol": "reward_debts"
                     },
                     "val": {
-                      "i128": "0"
+                      "map": []
                     }
                   },
                   {
