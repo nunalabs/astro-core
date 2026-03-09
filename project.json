@@ -1,0 +1,63 @@
+{
+  "name": "astro-core",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "astro-core/contracts",
+  "tags": ["rust", "contracts", "core", "source-of-truth"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo build --release --target wasm32-unknown-unknown",
+        "cwd": "astro-core"
+      },
+      "outputs": ["{projectRoot}/target/wasm32-unknown-unknown/release"],
+      "cache": true
+    },
+    "build-debug": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo build --target wasm32-unknown-unknown",
+        "cwd": "astro-core"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo test --workspace",
+        "cwd": "astro-core"
+      },
+      "cache": true
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo clippy --workspace -- -D warnings",
+        "cwd": "astro-core"
+      },
+      "cache": true
+    },
+    "fmt": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo fmt --all",
+        "cwd": "astro-core"
+      }
+    },
+    "fmt-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo fmt --all -- --check",
+        "cwd": "astro-core"
+      },
+      "cache": true
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo clean",
+        "cwd": "astro-core"
+      }
+    }
+  }
+}

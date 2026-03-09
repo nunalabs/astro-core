@@ -159,9 +159,15 @@ impl StakingPool {
         }
 
         // Save user stake
+        let user_stake_key = DataKey::UserStake(user.clone());
         env.storage()
             .persistent()
-            .set(&DataKey::UserStake(user.clone()), &user_stake);
+            .set(&user_stake_key, &user_stake);
+
+        // FIX #M3: Extend TTL for UserStake to prevent expiration
+        env.storage()
+            .persistent()
+            .extend_ttl(&user_stake_key, 200_000, 200_000);
 
         // Update total staked
         let total_staked = Self::get_total_staked(&env);
@@ -210,9 +216,15 @@ impl StakingPool {
         }
 
         // Save user stake
+        let user_stake_key = DataKey::UserStake(user.clone());
         env.storage()
             .persistent()
-            .set(&DataKey::UserStake(user.clone()), &user_stake);
+            .set(&user_stake_key, &user_stake);
+
+        // FIX #M3: Extend TTL for UserStake to prevent expiration
+        env.storage()
+            .persistent()
+            .extend_ttl(&user_stake_key, 200_000, 200_000);
 
         // Update total staked
         let total_staked = Self::get_total_staked(&env);
@@ -255,9 +267,16 @@ impl StakingPool {
             user_stake.set_reward_debt(&reward_token, new_debt);
         }
 
+        let user_stake_key = DataKey::UserStake(user.clone());
         env.storage()
             .persistent()
-            .set(&DataKey::UserStake(user.clone()), &user_stake);
+            .set(&user_stake_key, &user_stake);
+
+        // FIX #M3: Extend TTL for UserStake to prevent expiration
+        env.storage()
+            .persistent()
+            .extend_ttl(&user_stake_key, 200_000, 200_000);
+
         extend_instance_ttl(&env);
 
         Ok(rewards)
@@ -300,21 +319,24 @@ impl StakingPool {
             return Err(SharedError::InvalidAmount);
         }
 
+        let total_staked = Self::get_total_staked(&env);
+
+        // FIX #M2: Prevent adding rewards when no stakers to avoid fund loss
+        if total_staked == 0 {
+            return Err(SharedError::InvalidState);
+        }
+
         // Transfer reward tokens to contract
         let token_client = token::Client::new(&env, &reward_token);
         token_client.transfer(&caller, &env.current_contract_address(), &amount);
 
-        let total_staked = Self::get_total_staked(&env);
-
-        // Only update accumulated rewards if there are stakers
-        if total_staked > 0 {
-            let current_acc = Self::get_acc_reward_per_share(&env, &reward_token);
-            let reward_per_share = safe_div(safe_mul(amount, PRECISION)?, total_staked)?;
-            let new_acc = safe_add(current_acc, reward_per_share)?;
-            env.storage()
-                .persistent()
-                .set(&DataKey::AccRewardPerShare(reward_token.clone()), &new_acc);
-        }
+        // Update accumulated rewards
+        let current_acc = Self::get_acc_reward_per_share(&env, &reward_token);
+        let reward_per_share = safe_div(safe_mul(amount, PRECISION)?, total_staked)?;
+        let new_acc = safe_add(current_acc, reward_per_share)?;
+        env.storage()
+            .persistent()
+            .set(&DataKey::AccRewardPerShare(reward_token.clone()), &new_acc);
 
         // Update total rewards
         let total_rewards = Self::get_total_rewards(&env, &reward_token);

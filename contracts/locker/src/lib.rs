@@ -20,6 +20,13 @@ use astro_core_shared::{
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Vec};
 
 // ════════════════════════════════════════════════════════════════════════════
+// Constants
+// ════════════════════════════════════════════════════════════════════════════
+
+/// Maximum locks per user to prevent DoS (FIX #M4)
+const MAX_LOCKS_PER_USER: u32 = 1000;
+
+// ════════════════════════════════════════════════════════════════════════════
 // Storage Keys
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -171,7 +178,7 @@ impl LiquidityLocker {
         Self::extend_lock_ttl(&env, lock_id, &lock_info);
 
         // Update user's lock list
-        Self::add_lock_to_user(&env, &owner, lock_id);
+        Self::add_lock_to_user(&env, &owner, lock_id)?;
 
         // Update token's lock list
         Self::add_lock_to_token(&env, &lp_token, lock_id);
@@ -238,7 +245,7 @@ impl LiquidityLocker {
         // Extend TTL for permanent lock (VULN #H2 fix - critical for u64::MAX)
         Self::extend_lock_ttl(&env, lock_id, &lock_info);
 
-        Self::add_lock_to_user(&env, &owner, lock_id);
+        Self::add_lock_to_user(&env, &owner, lock_id)?;
         Self::add_lock_to_token(&env, &lp_token, lock_id);
 
         let total = Self::get_total_locked(&env, &lp_token);
@@ -517,7 +524,7 @@ impl LiquidityLocker {
 
         // Update user lock lists
         Self::remove_lock_from_user(&env, &owner, lock_id);
-        Self::add_lock_to_user(&env, &new_owner, lock_id);
+        Self::add_lock_to_user(&env, &new_owner, lock_id)?;
 
         let events = EventBuilder::new(&env);
         events.publish("locker", "lock_transferred", (lock_id, owner, new_owner));
@@ -763,16 +770,24 @@ impl LiquidityLocker {
             .unwrap_or(0)
     }
 
-    fn add_lock_to_user(env: &Env, user: &Address, lock_id: u64) {
+    fn add_lock_to_user(env: &Env, user: &Address, lock_id: u64) -> Result<(), SharedError> {
         let mut locks: Vec<u64> = env
             .storage()
             .persistent()
             .get(&DataKey::UserLocks(user.clone()))
             .unwrap_or(Vec::new(env));
+
+        // FIX #M4: Prevent DoS by limiting locks per user
+        if locks.len() >= MAX_LOCKS_PER_USER {
+            return Err(SharedError::LimitExceeded);
+        }
+
         locks.push_back(lock_id);
         env.storage()
             .persistent()
             .set(&DataKey::UserLocks(user.clone()), &locks);
+
+        Ok(())
     }
 
     fn remove_lock_from_user(env: &Env, user: &Address, lock_id: u64) {

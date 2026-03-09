@@ -139,9 +139,15 @@ impl FeeDistributor {
         // Add to pending fees
         let current = Self::get_pending_fees(&env, &token);
         let new_pending = safe_add(current, amount)?;
+        let pending_fees_key = DataKey::PendingFees(token.clone());
         env.storage()
             .persistent()
-            .set(&DataKey::PendingFees(token.clone()), &new_pending);
+            .set(&pending_fees_key, &new_pending);
+
+        // FIX #M1: Extend TTL for PendingFees to prevent expiration
+        env.storage()
+            .persistent()
+            .extend_ttl(&pending_fees_key, 200_000, 200_000);
 
         // Ensure token is in supported list
         Self::add_supported_token(&env, &token);
@@ -215,9 +221,15 @@ impl FeeDistributor {
         }
 
         // Update state
+        let pending_fees_key = DataKey::PendingFees(token.clone());
         env.storage()
             .persistent()
-            .set(&DataKey::PendingFees(token.clone()), &0_i128);
+            .set(&pending_fees_key, &0_i128);
+
+        // FIX #M1: Extend TTL for PendingFees to prevent expiration
+        env.storage()
+            .persistent()
+            .extend_ttl(&pending_fees_key, 200_000, 200_000);
 
         let prev_total = Self::get_total_distributed(&env, &token);
         let new_total = safe_add(prev_total, pending)?;
