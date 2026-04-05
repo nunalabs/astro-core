@@ -3,13 +3,27 @@
 //! Provides ZK proof utilities for privacy-preserving operations.
 //! Uses BN254 curve and Poseidon hash function (CAP-74, CAP-75).
 //!
-//! ## Use Cases
+//! # ⚠️ WARNING: PLACEHOLDER IMPLEMENTATION
+//!
+//! **This module contains PLACEHOLDER implementations that are NOT functional.**
+//!
+//! The following functions return dummy values and MUST NOT be used in production:
+//! - `verify_groth16_proof()` - Always returns `Ok(true)` (UNSAFE)
+//! - `poseidon_hash()` - Returns empty bytes (NON-FUNCTIONAL)
+//! - `create_commitment()` - Returns empty bytes (NON-FUNCTIONAL)
+//! - `create_nullifier()` - Returns empty bytes (NON-FUNCTIONAL)
+//!
+//! **Status:** Waiting for Stellar Protocol 25 with native BN254 support.
+//! These functions will be implemented when `env.crypto().bn254_*` and
+//! `env.crypto().poseidon_*` become available.
+//!
+//! ## Intended Use Cases (Future)
 //! - Confidential swaps (hide amounts)
 //! - Private trading (hide trader identity)
 //! - MEV protection (prevent front-running)
 //! - Compliance pools (selective disclosure)
 //!
-//! ## Example
+//! ## Example (Future API)
 //! ```rust,ignore
 //! use astro_core_shared::zk::{verify_swap_proof, create_nullifier};
 //!
@@ -56,9 +70,17 @@ pub const POSEIDON_CAPACITY: u32 = 1;
 /// * `Ok(false)` if proof is invalid
 /// * `Err(SharedError)` on verification error
 ///
+/// # ⚠️ WARNING: PLACEHOLDER - DO NOT USE IN PRODUCTION
+///
+/// This function currently returns `Ok(true)` without verification.
+/// It will be implemented when Protocol 25 BN254 functions are available.
+///
 /// # Note
-/// This is a placeholder for Protocol 25 ZK verification.
 /// Actual implementation will use `env.crypto().bn254_*` functions.
+#[deprecated(
+    since = "0.1.0",
+    note = "Placeholder implementation - returns Ok(true) without verification. DO NOT USE IN PRODUCTION."
+)]
 pub fn verify_groth16_proof(
     _env: &Env,
     _proof: &Bytes,
@@ -103,9 +125,17 @@ pub fn verify_groth16_proof(
 /// # Returns
 /// * The Poseidon hash as Bytes
 ///
+/// # ⚠️ WARNING: PLACEHOLDER - DO NOT USE IN PRODUCTION
+///
+/// This function currently returns empty bytes.
+/// It will be implemented when Protocol 25 Poseidon functions are available.
+///
 /// # Note
-/// This is a placeholder for Protocol 25 Poseidon hash.
 /// Actual implementation will use `env.crypto().poseidon_*` functions.
+#[deprecated(
+    since = "0.1.0",
+    note = "Placeholder implementation - returns empty bytes. DO NOT USE IN PRODUCTION."
+)]
 pub fn poseidon_hash(_env: &Env, _inputs: &[i128]) -> Bytes {
     // Protocol 25 Poseidon hash will be implemented here
     // For now, return placeholder
